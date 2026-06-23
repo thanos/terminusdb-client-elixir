@@ -1,18 +1,50 @@
 defmodule TerminusDB do
   @moduledoc """
-  Documentation for `TerminusDB`.
+  An idiomatic Elixir client for [TerminusDB](https://terminusdb.org), the document
+  graph database with built-in version control.
+
+  v0.1 provides the foundation: an immutable `TerminusDB.Config` for connection
+  context, a Req-based `TerminusDB.Client` HTTP layer, a typed `TerminusDB.Error`,
+  the `TerminusDB.Database` management API, and `TerminusDB.Telemetry` events on
+  every operation. Connection context is **immutable data**, making it safe for
+  concurrent use.
+
+  Document, schema, branch, commit, diff, merge, WOQL, GraphQL, and streaming
+  APIs, plus optional Ecto and ExDatalog integrations, are planned for later
+  milestones. See `ARCHITECTURE.md` and the ADRs (under `docs/adr/`) for the full
+  design and roadmap.
+
+  ## Quick start
+
+      # 1. Configure a connection (immutable context)
+      config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+
+      # 2. Manage databases
+      {:ok, _} = TerminusDB.Database.create(config, "mydb",
+        label: "My Database",
+        comment: "A new database",
+        schema: true
+      )
+
+      # 3. Scope to a database (for later document work)
+      config = TerminusDB.Config.with_database(config, "mydb")
+
+  All public calls return `{:ok, result}` or `{:error, %TerminusDB.Error{}}`. Each
+  `!/1`-suffixed variant raises `TerminusDB.Error` instead. Every operation emits
+  `:telemetry` events (see `TerminusDB.Telemetry`).
   """
 
+  @version Mix.Project.config()[:version] || "0.0.0"
+
   @doc """
-  Hello world.
+  Returns the library version string.
 
   ## Examples
 
-      iex> TerminusDB.hello()
-      :world
+      iex> String.match?(TerminusDB.version(), ~r/^\\d+\\.\\d+\\.\\d+/)
+      true
 
   """
-  def hello do
-    :world
-  end
+  @spec version() :: String.t()
+  def version, do: @version
 end

@@ -1,8 +1,5 @@
 defmodule TerminusDBTest do
-  use ExUnit.Case
-  doctest TerminusDB
+  use ExUnit.Case, async: true
 
-  test "greets the world" do
-    assert TerminusDB.hello() == :world
-  end
+  doctest TerminusDB
 end

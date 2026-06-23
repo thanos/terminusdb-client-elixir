@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  MIX_ENV: test
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: Format, Credo, Sobelow, Dialyzer
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: dev
+      ELIXIR_VERSION: "1.20.1"
+      OTP_VERSION: "28"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile with --warnings-as-errors
+        run: mix compile --warnings-as-errors
+
+      - name: Credo (strict)
+        run: mix credo --strict
+
+      - name: Sobelow (security)
+        run: mix sobelow --exit Low
+
+      - name: Restore dialyzer PLT
+        uses: actions/cache@v4
+        with:
+          path: |
+            _build/plts
+            _build/dev/*.plt
+          key: ${{ runner.os }}-dialyzer-ex${{ env.ELIXIR_VERSION }}-otp${{ env.OTP_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-dialyzer-ex${{ env.ELIXIR_VERSION }}-otp${{ env.OTP_VERSION }}-
+
+      - name: Dialyzer
+        run: mix dialyzer
+
+  test:
+    name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.18.4"
+            otp: "27"
+          - elixir: "1.19.5"
+            otp: "28"
+          - elixir: "1.20.1"
+            otp: "28"
+    env:
+      MIX_ENV: test
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Run tests with coverage
+        run: mix coveralls.github
+
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.1"
+          otp-version: "28"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Build docs
+        run: mix docs
+
+  # integration:
+  #   name: Integration tests (real TerminusDB)
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     MIX_ENV: test
+  #     TERMINUSDB_URL: "http://localhost:6363"
+  #     TERMINUSDB_USER: "admin"
+  #     TERMINUSDB_KEY: "root"
+  #   services:
+  #     terminusdb:
+  #       image: terminusdb/terminusdb-server:latest
+  #       ports:
+  #         - 6363:6363
+  #       env:
+  #         TERMINUSDB_ADMIN_PASS: root
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - name: Set up Elixir
+  #       uses: erlef/setup-beam@v1
+  #       with:
+  #         elixir-version: "1.20.1"
+  #         otp-version: "28"
+
+  #     - name: Install dependencies
+  #       run: mix deps.get
+
+  #     - name: Wait for TerminusDB to be ready
+  #       run: |
+  #         echo "Waiting for TerminusDB at http://localhost:6363..."
+  #         for i in $(seq 1 30); do
+  #           if curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; then
+  #             echo "TerminusDB is ready (attempt $i)."
+  #             exit 0
+  #           fi
+  #           echo "  attempt $i/30 - not ready yet, retrying in 2s..."
+  #           sleep 2
+  #         done
+  #         echo "::error::TerminusDB did not become ready within 60s."
+  #         docker logs "$(docker ps -q --filter ancestor=terminusdb/terminusdb-server:latest)" 2>&1 | tail -30
+  #         exit 1
+
+  #     - name: Run integration tests
+  #       run: mix test --only integration
