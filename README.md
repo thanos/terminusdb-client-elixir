@@ -109,6 +109,5 @@ See `AGENTS.md` for the full operating guide and `ARCHITECTURE.md` + `docs/adr/`
 the design.
 
 ## License
-
-Copyright 2026 TerminusDB Contributors. Licensed under the Apache License, Version 2.0.
+Licensed under the Apache License, Version 2.0.
 See [LICENSE](LICENSE).
