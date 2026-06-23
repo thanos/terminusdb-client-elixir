@@ -35,7 +35,8 @@ defmodule TerminusDB.TelemetryTest do
     test "emits start and stop with measurements and metadata" do
       # A unique path isolates this test's events from other concurrent tests
       # that emit [:terminusdb, :database, *] events (telemetry is global).
-      meta = %{path: "telemetry/direct", method: :post}
+      # The caller (Client) is responsible for putting the redacted config in meta.
+      meta = %{path: "telemetry/direct", method: :post, config: Config.redact(@config)}
 
       start_time = Telemetry.start(:database, meta, @config)
       assert is_integer(start_time)
@@ -55,7 +56,7 @@ defmodule TerminusDB.TelemetryTest do
       assert stop_measurements[:system_time] >= start_time
       assert stop_meta.status == 200
       assert stop_meta.error == nil
-      # config is redacted in stop metadata
+      # config is carried through from the start meta (already redacted by caller)
       assert stop_meta.config.key == "[redacted]"
     end
 

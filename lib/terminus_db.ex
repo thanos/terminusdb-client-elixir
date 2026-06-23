@@ -1,12 +1,18 @@
 defmodule TerminusDB do
   @moduledoc """
-  A modern, idiomatic Elixir client for [TerminusDB](https://terminusdb.org) — the
-  document graph database with built-in version control.
+  An idiomatic Elixir client for [TerminusDB](https://terminusdb.org), the document
+  graph database with built-in version control.
 
-  `terminusdb_ex` exposes database management, document/schema APIs, WOQL, GraphQL,
-  telemetry, and streaming, with optional Ecto and ExDatalog integration. It is built
-  on `Req` and treats connection context as **immutable data**, making it safe for
+  v0.1 provides the foundation: an immutable `TerminusDB.Config` for connection
+  context, a Req-based `TerminusDB.Client` HTTP layer, a typed `TerminusDB.Error`,
+  the `TerminusDB.Database` management API, and `TerminusDB.Telemetry` events on
+  every operation. Connection context is **immutable data**, making it safe for
   concurrent use.
+
+  Document, schema, branch, commit, diff, merge, WOQL, GraphQL, and streaming
+  APIs, plus optional Ecto and ExDatalog integrations, are planned for later
+  milestones. See `ARCHITECTURE.md` and the ADRs (under `docs/adr/`) for the full
+  design and roadmap.
 
   ## Quick start
 
@@ -20,19 +26,15 @@ defmodule TerminusDB do
         schema: true
       )
 
-      # 3. Scope to a database and work with documents (v0.2)
+      # 3. Scope to a database (for later document work)
       config = TerminusDB.Config.with_database(config, "mydb")
 
   All public calls return `{:ok, result}` or `{:error, %TerminusDB.Error{}}`. Each
   `!/1`-suffixed variant raises `TerminusDB.Error` instead. Every operation emits
   `:telemetry` events (see `TerminusDB.Telemetry`).
-
-  ## Architecture
-
-  See `ARCHITECTURE.md` and the ADRs (under `docs/adr/`) for the full design, including the
-  HTTP client selection (Req), the WOQL DSL, Ecto/ExDatalog integration strategies,
-  telemetry, testing, and streaming.
   """
+
+  @version Mix.Project.config()[:version] || "0.0.0"
 
   @doc """
   Returns the library version string.
@@ -44,5 +46,5 @@ defmodule TerminusDB do
 
   """
   @spec version() :: String.t()
-  def version, do: "0.1.0"
+  def version, do: @version
 end

@@ -7,13 +7,14 @@ services:
       - "6363:6363"
     environment:
       TERMINUSDB_ADMIN_PASS: root
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6363/api/ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
     volumes:
       - terminusdb_data:/app/terminusdb/storage/db
+
+# NOTE: The terminusdb-server image is based on SWI-Prolog and does not ship
+# `curl`, so an in-container Docker healthcheck is not viable. Poll the
+# `/api/ok` endpoint from the host before running integration tests, e.g.:
+#
+#   until curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; do sleep 1; done
 
 volumes:
   terminusdb_data:

@@ -22,7 +22,8 @@ defmodule TerminusDB.Telemetry do
 
   Both events carry `%{config: redacted_config, method: atom, path: String.t(), area: atom}`
   plus, on `:stop`, `status: pos_integer | nil` and `error: TerminusDB.Error.t() | nil`.
-  The config is redacted via `TerminusDB.Config.redact/1` so credentials never leak.
+  The caller (typically `TerminusDB.Client`) is responsible for redacting the config via
+  `TerminusDB.Config.redact/1` before placing it in the meta, so credentials never leak.
 
   ## Attaching
 
@@ -73,17 +74,18 @@ defmodule TerminusDB.Telemetry do
   to include in the metadata. No-op when `config.telemetry` is `false`.
   """
   @spec stop(area(), map(), integer() | nil, TerminusDB.Config.t(), keyword()) :: :ok | nil
-  def stop(area, meta, start_monotonic, %TerminusDB.Config{telemetry: true} = config, opts) do
+  def stop(area, meta, start_monotonic, %TerminusDB.Config{telemetry: true}, opts) do
     stop_time = System.monotonic_time()
     duration = start_monotonic && stop_time - start_monotonic
 
     measurements = %{duration: duration, system_time: stop_time}
 
+    # Config is already redacted by the caller (Client) in meta[:config].
+    # Reuse it rather than re-redacting.
     stop_meta =
       meta
       |> Map.put(:status, opts[:status])
       |> Map.put(:error, opts[:error])
-      |> Map.put(:config, TerminusDB.Config.redact(config))
 
     :telemetry.execute(event_name(area, :stop), measurements, stop_meta)
     :ok

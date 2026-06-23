@@ -62,6 +62,16 @@ defmodule TerminusDB.ErrorTest do
       assert Exception.message(error) ==
                "TerminusDB API error 500 (api:ServerError): API error 500"
     end
+
+    test "falls back to top-level @type when api:error map has no @type" do
+      error =
+        TerminusDB.Error.api(400, %{
+          "@type" => "api:TopLevel",
+          "api:error" => %{"api:database_name" => "mydb"}
+        })
+
+      assert error.api_type == "api:TopLevel"
+    end
   end
 
   describe "decode/2" do

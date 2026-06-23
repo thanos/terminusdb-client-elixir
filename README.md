@@ -1,17 +1,15 @@
 # terminusdb_ex
 
-An idiomatic, production-quality Elixir client for [TerminusDB](https://terminusdb.org) —
-the document graph database with built-in version control.
-
-`terminusdb_ex` exposes database management, document/schema APIs, WOQL, GraphQL,
-telemetry, and streaming, with optional Ecto and ExDatalog integrations planned. It is
-built on [Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
+An idiomatic Elixir client for [TerminusDB](https://terminusdb.org), the document
+graph database with built-in version control. It is built on
+[Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
 making it safe for concurrent use.
 
-> **Status:** v0.1 (foundation) — `Config`, `Error`, `Telemetry`, `Client`, and the
-> `Database` management API are implemented and tested. Document/Schema/Branch/Commit/
-> Diff/Merge/WOQL/GraphQL APIs, Ecto, and ExDatalog land in later milestones. See
-> `ARCHITECTURE.md` and `AGENTS.md` for the roadmap.
+> **Status:** v0.1 (foundation). `Config`, `Error`, `Telemetry`, `Client`, and the
+> `Database` management API are implemented and tested. Document, schema, branch,
+> commit, diff, merge, WOQL, GraphQL, and streaming APIs, plus optional Ecto and
+> ExDatalog integrations, are planned for later milestones. See `ARCHITECTURE.md`
+> and `AGENTS.md` for the roadmap.
 
 ## Installation
 
@@ -66,7 +64,7 @@ config = TerminusDB.Config.new(endpoint: "http://localhost:6363", token: "tok_ab
 ## Telemetry
 
 Every operation emits `[:terminusdb, <area>, :start]` and `[:stop]` events
-(`<area>` ∈ `:database`, `:document`, `:query`, `:branch`, `:merge`, `:diff`,
+(`<area>` is `:database`, `:document`, `:query`, `:branch`, `:merge`, `:diff`, or
 `:connection`). Attach with `:telemetry.attach_many/4`. See `TerminusDB.Telemetry`
 and ADR-0005.
 
@@ -74,8 +72,8 @@ and ADR-0005.
 :telemetry.attach_many(
   "my-handler",
   [[:terminusdb, :database, :stop]],
-  fn _event, %{duration: dur}, meta, _ctx ->
-    :telemetry.execute(:my_app, %{db_duration: dur}, %{path: meta.path})
+  fn _event, %{duration: duration}, meta, _ctx ->
+    :telemetry.execute([:my_app, :db, :duration], %{duration: duration}, %{path: meta.path})
   end,
   nil
 )
@@ -86,14 +84,17 @@ and ADR-0005.
 ```bash
 mix deps.get
 mix test                 # hermetic unit + doctests
-mix coveralls            # coverage (target 80%)
+mix coveralls            # coverage (target 80%, enforced via coveralls.json)
 mix quality              # format + credo + sobelow + dialyzer
+mix verify               # full quality gate + tests + docs
 ```
 
-Integration tests run against a Dockerized TerminusDB:
+Integration tests run against a Dockerized TerminusDB (the image has no in-container
+healthcheck, so poll from the host):
 
 ```bash
 docker compose up -d
+until curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; do sleep 1; done
 mix test --only integration
 docker compose down
 ```
@@ -103,5 +104,5 @@ the design.
 
 ## License
 
-Copyright 2026 TerminusDB Contributors. Licensed under the Apache License, Version 2.0 —
-see [LICENSE](LICENSE).
+Copyright 2026 TerminusDB Contributors. Licensed under the Apache License, Version 2.0.
+See [LICENSE](LICENSE).

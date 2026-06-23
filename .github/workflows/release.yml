@@ -15,8 +15,6 @@ jobs:
   publish:
     name: Publish to Hex.pm
     runs-on: ubuntu-latest
-    env:
-      MIX_ENV: dev
     steps:
       - uses: actions/checkout@v4
 
@@ -32,22 +30,43 @@ jobs:
       - name: Compile with --warnings-as-errors
         run: mix compile --warnings-as-errors
 
-      - name: Run the full quality gate
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Credo (strict)
+        env:
+          MIX_ENV: dev
+        run: mix credo --strict
+
+      - name: Sobelow (security)
+        env:
+          MIX_ENV: dev
+        run: mix sobelow --exit Low
+
+      - name: Dialyzer
+        env:
+          MIX_ENV: dev
+        run: mix dialyzer
+
+      - name: Run tests with coverage
         env:
           MIX_ENV: test
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mix format --check-formatted
-          mix credo --strict
-          mix sobelow --exit Low
-          mix coveralls.github
-          mix docs
+        run: mix coveralls.github
+
+      - name: Build docs
+        env:
+          MIX_ENV: dev
+        run: mix docs --warnings-as-errors
 
       - name: Verify package metadata
+        env:
+          MIX_ENV: dev
         run: mix hex.build
 
       - name: Publish to Hex.pm
         env:
+          MIX_ENV: dev
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: mix hex.publish --yes
 

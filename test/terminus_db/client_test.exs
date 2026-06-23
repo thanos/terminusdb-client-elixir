@@ -2,24 +2,9 @@ defmodule TerminusDB.ClientTest do
   use ExUnit.Case, async: true
 
   alias TerminusDB.{Client, Config, Error}
+  import TerminusDB.Test.Helpers
 
   doctest TerminusDB.Client
-
-  # Test helpers --------------------------------------------------------------
-
-  defp config(adapter), do: Config.new(endpoint: "http://localhost:6363", adapter: adapter)
-
-  defp capture(adapter_fun), do: adapter_fun
-
-  defp ok(body), do: Req.Response.new(status: 200, body: body)
-  defp resp(status, body), do: Req.Response.new(status: status, body: body)
-
-  defp last_request do
-    assert_received {:request, req}, "no request was captured"
-    req
-  end
-
-  defp request_url(%Req.Request{} = req), do: URI.to_string(req.url)
 
   # Tests ---------------------------------------------------------------------
 
@@ -164,6 +149,13 @@ defmodule TerminusDB.ClientTest do
       assert {:error, %Error{reason: :transport, cause: %Req.TransportError{}}} =
                Client.request(config(adapter), :get, "ok")
     end
+
+    test "maps an empty-map error body to an :api error with nil api_type" do
+      adapter = fn req -> {req, resp(400, %{})} end
+
+      assert {:error, %Error{reason: :api, status: 400, api_type: nil}} =
+               Client.request(config(adapter), :get, "db/admin/bad")
+    end
   end
 
   describe "request!/4" do
@@ -260,6 +252,18 @@ defmodule TerminusDB.ClientTest do
 
       assert stop_meta.status == 500
       assert %Error{reason: :http} = stop_meta.error
+    end
+
+    test "emits stop with status nil and a :transport error on adapter exception" do
+      adapter = fn req -> {req, Req.TransportError.exception(reason: :econnrefused)} end
+
+      Client.request(config(adapter), :get, "telemetry/err-c", area: :database)
+
+      assert_receive {:event, [:terminusdb, :database, :stop], _,
+                      %{path: "telemetry/err-c"} = stop_meta}
+
+      assert stop_meta.status == nil
+      assert %Error{reason: :transport} = stop_meta.error
     end
   end
 end

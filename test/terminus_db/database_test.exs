@@ -2,22 +2,7 @@ defmodule TerminusDB.DatabaseTest do
   use ExUnit.Case, async: true
 
   alias TerminusDB.{Config, Database, Error}
-
-  defp config(adapter), do: Config.new(endpoint: "http://localhost:6363", adapter: adapter)
-
-  defp ok(body \\ %{"api:status" => "api:success"}), do: Req.Response.new(status: 200, body: body)
-
-  defp capture(test, response) do
-    fn req ->
-      send(test, {:request, req})
-      {req, response}
-    end
-  end
-
-  defp last_request do
-    assert_received {:request, req}
-    req
-  end
+  import TerminusDB.Test.Helpers
 
   describe "create/3" do
     test "POSTs to db/:org/:db with label, comment, schema" do
@@ -207,6 +192,17 @@ defmodule TerminusDB.DatabaseTest do
       req = last_request()
       assert URI.to_string(req.url) == "http://localhost:6363/api/db/acme/mydb"
     end
+
+    test "forwards a non-boolean param value as-is" do
+      test = self()
+      adapter = capture(test, ok([]))
+
+      # Exercises the generic maybe_param clause that forwards any non-nil,
+      # non-false, non-true value verbatim.
+      Database.info(config(adapter), "mydb", branches: "yes")
+      req = last_request()
+      assert req.url.query =~ "branches=yes"
+    end
   end
 
   describe "info!/3" do
@@ -255,17 +251,6 @@ defmodule TerminusDB.DatabaseTest do
       req = last_request()
       assert req.url.query == nil
     end
-
-    test "forwards a non-boolean param value as-is" do
-      test = self()
-      adapter = capture(test, ok([]))
-
-      # Exercises the generic maybe_param clause that forwards any non-nil,
-      # non-false, non-true value verbatim.
-      Database.info(config(adapter), "mydb", branches: "yes")
-      req = last_request()
-      assert req.url.query =~ "branches=yes"
-    end
   end
 
   describe "list!/2" do
@@ -286,14 +271,36 @@ defmodule TerminusDB.DatabaseTest do
   end
 
   describe "exists?/3" do
-    test "returns true on 200" do
-      adapter = fn req -> {req, Req.Response.new(status: 200, body: "")} end
+    test "returns true on 200 and issues a HEAD to db/:org/:db" do
+      test = self()
+
+      adapter = fn req ->
+        send(test, {:request, req})
+        {req, Req.Response.new(status: 200, body: "")}
+      end
+
       assert Database.exists?(config(adapter), "mydb") == true
+      req = last_request()
+      assert req.method == :head
+      assert URI.to_string(req.url) == "http://localhost:6363/api/db/admin/mydb"
     end
 
     test "returns false on 404" do
       adapter = fn req -> {req, Req.Response.new(status: 404, body: "")} end
       assert Database.exists?(config(adapter), "missing") == false
+    end
+
+    test "honors :organization override" do
+      test = self()
+
+      adapter = fn req ->
+        send(test, {:request, req})
+        {req, Req.Response.new(status: 200, body: "")}
+      end
+
+      Database.exists?(config(adapter), "mydb", organization: "acme")
+      req = last_request()
+      assert URI.to_string(req.url) == "http://localhost:6363/api/db/acme/mydb"
     end
 
     test "raises on unexpected errors" do

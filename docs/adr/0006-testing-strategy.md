@@ -12,14 +12,14 @@ CI running against Dockerized TerminusDB and coverage ≥ 80% (minimum 70%).
 
 Adopt a layered strategy using `ExUnit` + `ExCoveralls` + `StreamData`:
 
-1. **Unit tests** (`test/terminusdb_ex/*_test.exs`) — fast, hermetic, no network. The HTTP
+1. **Unit tests** (`test/terminus_db/*_test.exs`) — fast, hermetic, no network. The HTTP
    layer is stubbed with Req's fake `adapter: fn request -> {request, response} end`,
    injected via a test-only `TerminusDB.Config` field. Tests assert both *requests*
    (method/path/params/body/auth) and *responses* (decoded bodies, errors, telemetry).
 
-2. **Property tests** (`test/terminusdb_ex/property/*_test.exs`) — `StreamData` generators
-   for configs, document maps, and WOQL ASTs. Assert round-trips (e.g.
-   `WOQL.from_jsonld(WOQL.to_jsonld(q)) == q`) and invariants (e.g. error struct shape).
+2. **Property tests** (`test/terminus_db/property/*_test.exs`) — `StreamData` generators
+   for configs and error structs. Assert round-trips and invariants (e.g. `with_database/2`
+   only changes `:database` and preserves all other fields).
 
 3. **Doctests** — every public function with an example gets a `doctest`. Kept hermetic
    by using the fake adapter or pure functions only.
@@ -32,8 +32,9 @@ Adopt a layered strategy using `ExUnit` + `ExCoveralls` + `StreamData`:
 
 ### Coverage
 
-`ExCoveralls` with `test_coverage: [tool: ExCoveralls]` and `preferred_cli_env` for
-`coveralls`/`credo`/`dialyzer`/`sobelow`. Target 80%, enforced floor 70% via CI check.
+`ExCoveralls` with `test_coverage: [tool: ExCoveralls]` and `preferred_envs` for
+`coveralls`/`credo`/`dialyzer`/`sobelow`. Target 80%, enforced via `coveralls.json`
+(`minimum_coverage: 80`) which makes `mix coveralls` exit non-zero below the threshold.
 
 ## Consequences
 

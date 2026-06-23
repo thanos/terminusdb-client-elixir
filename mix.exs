@@ -2,11 +2,14 @@ defmodule TerminusDB.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/terminusdb/terminusdb_ex"
+  @source_url "https://github.com/thanos/terminusdb-client-elixir"
   @description """
-  A modern, idiomatic Elixir client for TerminusDB — the document graph database
-  with built-in version control. Provides database management, document/schema APIs,
-  WOQL, GraphQL, telemetry, streaming, and optional Ecto + ExDatalog integration.
+  An idiomatic Elixir client for TerminusDB, the document graph database with
+  built-in version control. v0.1 provides database management, an immutable
+  connection config, a Req-based HTTP client, typed errors, and telemetry.
+  Document, schema, branch, commit, diff, merge, WOQL, GraphQL, and streaming
+  APIs, plus optional Ecto and ExDatalog integrations, are planned for later
+  milestones.
   """
 
   def project do
@@ -109,6 +112,7 @@ defmodule TerminusDB.MixProject do
       main: "readme",
       extras: [
         {"README.md", [title: "Overview"]},
+        {"CHANGELOG.md", [title: "Changelog"]},
         {"ARCHITECTURE.md", [title: "Architecture"]},
         {"LICENSE", [title: "License"]}
       ],
@@ -122,14 +126,13 @@ defmodule TerminusDB.MixProject do
 
   defp aliases do
     [
-      quality: ["format --check-formatted", "credo --strict", "sobelow --skip", "dialyzer"],
+      quality: ["format --check-formatted", "credo --strict", "sobelow --exit Low", "dialyzer"],
       verify: &verify/1
     ]
   end
 
   defp verify(_) do
     steps = [
-      # ["precommit", :dev],
       {"compile --warnings-as-errors", :dev},
       {"format --check-formatted", :dev},
       {"credo --strict", :dev},

@@ -1,4 +1,6 @@
 defmodule TerminusDB.Config do
+  @version Mix.Project.config()[:version] || "0.0.0"
+
   @schema [
     endpoint: [
       type: :string,
@@ -66,7 +68,7 @@ defmodule TerminusDB.Config do
     ],
     user_agent: [
       type: :string,
-      default: "terminusdb_ex/0.1.0",
+      default: "terminusdb_ex/#{@version}",
       doc: "Value of the `user-agent` request header."
     ]
   ]
@@ -126,7 +128,7 @@ defmodule TerminusDB.Config do
     headers: %{},
     receive_timeout: 15_000,
     telemetry: true,
-    user_agent: "terminusdb_ex/0.1.0"
+    user_agent: "terminusdb_ex/#{@version}"
   ]
 
   @type t :: %__MODULE__{
