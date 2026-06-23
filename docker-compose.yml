@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  terminusdb:
+    image: terminusdb/terminusdb-server:latest
+    ports:
+      - "6363:6363"
+    environment:
+      TERMINUSDB_ADMIN_PASS: root
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6363/api/ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - terminusdb_data:/app/terminusdb/storage/db
+
+volumes:
+  terminusdb_data:

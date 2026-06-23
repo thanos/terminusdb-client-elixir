@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  MIX_ENV: test
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: Format, Credo, Sobelow, Dialyzer
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "28"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile with --warnings-as-errors
+        run: mix compile --warnings-as-errors
+
+      - name: Credo (strict)
+        run: mix credo --strict
+
+      - name: Sobelow (security)
+        run: mix sobelow --skip
+
+      - name: Restore dialyzer PLT
+        uses: actions/cache@v4
+        with:
+          path: |
+            _build/plts
+            _build/dev/*.plt
+          key: ${{ runner.os }}-dialyzer-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-dialyzer-
+
+      - name: Dialyzer
+        run: mix dialyzer
+
+  test:
+    name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.18.4"
+            otp: "28"
+          - elixir: "1.17.3"
+            otp: "27"
+    env:
+      MIX_ENV: test
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Run tests with coverage
+        run: mix coveralls.github
+
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "28"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Build docs
+        run: mix docs
+
+  integration:
+    name: Integration tests (real TerminusDB)
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      TERMINUSDB_URL: "http://localhost:6363"
+      TERMINUSDB_USER: "admin"
+      TERMINUSDB_KEY: "root"
+    services:
+      terminusdb:
+        image: terminusdb/terminusdb-server:latest
+        ports:
+          - 6363:6363
+        env:
+          TERMINUSDB_ADMIN_PASS: root
+        options: >-
+          --health-cmd "curl -f http://localhost:6363/api/ok || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "28"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Run integration tests
+        run: mix test --only integration
