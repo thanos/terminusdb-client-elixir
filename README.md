@@ -1,5 +1,11 @@
 # terminusdb_ex
 
+[![Hex.pm Version](https://img.shields.io/hexpm/v/terminusdb_client.svg)](https://hex.pm/packages/terminusdb_client)
+[![Hex.pm License](https://img.shields.io/hexpm/l/terminusdb_client.svg)](https://hex.pm/packages/terminusdb_client)
+[![HexDocs](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/terminusdb_client)
+[![CI](https://github.com/thanos/terminusdb-client-elixir/actions/workflows/ci.yml/badge.svg)](https://github.com/thanos/terminusdb-client-elixir/actions/workflows/ci.yml)
+[![Coverage](https://coveralls.io/repos/github/thanos/terminusdb-client-elixir/badge.svg?branch=main)](https://coveralls.io/github/thanos/terminusdb-client-elixir)
+
 An idiomatic Elixir client for [TerminusDB](https://terminusdb.org), the document
 graph database with built-in version control. It is built on
 [Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
