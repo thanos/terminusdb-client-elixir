@@ -124,11 +124,6 @@ jobs:
           - 6363:6363
         env:
           TERMINUSDB_ADMIN_PASS: root
-        options: >-
-          --health-cmd "curl -f http://localhost:6363/api/ok || exit 1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     steps:
       - uses: actions/checkout@v4
 
@@ -140,6 +135,21 @@ jobs:
 
       - name: Install dependencies
         run: mix deps.get
+
+      - name: Wait for TerminusDB to be ready
+        run: |
+          echo "Waiting for TerminusDB at http://localhost:6363..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; then
+              echo "TerminusDB is ready (attempt $i)."
+              exit 0
+            fi
+            echo "  attempt $i/30 — not ready yet, retrying in 2s..."
+            sleep 2
+          done
+          echo "::error::TerminusDB did not become ready within 60s."
+          docker logs "$(docker ps -q --filter ancestor=terminusdb/terminusdb-server:latest)" 2>&1 | tail -30
+          exit 1
 
       - name: Run integration tests
         run: mix test --only integration
