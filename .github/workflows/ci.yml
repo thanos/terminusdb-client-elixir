@@ -17,14 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIX_ENV: dev
+      ELIXIR_VERSION: "1.20.1"
+      OTP_VERSION: "28"
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.18.4"
-          otp-version: "28"
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
 
       - name: Install dependencies
         run: mix deps.get
@@ -39,7 +41,7 @@ jobs:
         run: mix credo --strict
 
       - name: Sobelow (security)
-        run: mix sobelow --skip
+        run: mix sobelow --exit Low
 
       - name: Restore dialyzer PLT
         uses: actions/cache@v4
@@ -47,8 +49,8 @@ jobs:
           path: |
             _build/plts
             _build/dev/*.plt
-          key: ${{ runner.os }}-dialyzer-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-dialyzer-
+          key: ${{ runner.os }}-dialyzer-ex${{ env.ELIXIR_VERSION }}-otp${{ env.OTP_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-dialyzer-ex${{ env.ELIXIR_VERSION }}-otp${{ env.OTP_VERSION }}-
 
       - name: Dialyzer
         run: mix dialyzer
@@ -61,9 +63,11 @@ jobs:
       matrix:
         include:
           - elixir: "1.18.4"
-            otp: "28"
-          - elixir: "1.17.3"
             otp: "27"
+          - elixir: "1.19.5"
+            otp: "28"
+          - elixir: "1.20.1"
+            otp: "28"
     env:
       MIX_ENV: test
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,7 +100,7 @@ jobs:
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.18.4"
+          elixir-version: "1.20.1"
           otp-version: "28"
 
       - name: Install dependencies
@@ -131,7 +135,7 @@ jobs:
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.18.4"
+          elixir-version: "1.20.1"
           otp-version: "28"
 
       - name: Install dependencies

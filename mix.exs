@@ -20,7 +20,6 @@ defmodule TerminusDB.MixProject do
       deps: deps(),
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: preferred_cli_env(),
       package: package(),
       docs: docs(),
       name: "terminusdb_ex",
@@ -33,6 +32,21 @@ defmodule TerminusDB.MixProject do
     [
       extra_applications: [:logger],
       mod: {TerminusDB.Application, []}
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.html": :test,
+        "coveralls.github": :test,
+        "coveralls.detail": :test,
+        credo: :dev,
+        dialyzer: :dev,
+        sobelow: :dev,
+        docs: :dev
+      ]
     ]
   end
 
@@ -62,19 +76,6 @@ defmodule TerminusDB.MixProject do
       plt_add_apps: [:req, :jason, :telemetry, :nimble_options],
       plt_core_path: "_build/plts",
       plt_file: {:no_warn, "_build/plts/terminusdb_client.plt"}
-    ]
-  end
-
-  defp preferred_cli_env do
-    [
-      coveralls: :test,
-      "coveralls.html": :test,
-      "coveralls.github": :test,
-      "coveralls.detail": :test,
-      credo: :dev,
-      dialyzer: :dev,
-      sobelow: :dev,
-      docs: :dev
     ]
   end
 
