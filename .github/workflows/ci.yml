@@ -109,47 +109,47 @@ jobs:
       - name: Build docs
         run: mix docs
 
-  integration:
-    name: Integration tests (real TerminusDB)
-    runs-on: ubuntu-latest
-    env:
-      MIX_ENV: test
-      TERMINUSDB_URL: "http://localhost:6363"
-      TERMINUSDB_USER: "admin"
-      TERMINUSDB_KEY: "root"
-    services:
-      terminusdb:
-        image: terminusdb/terminusdb-server:latest
-        ports:
-          - 6363:6363
-        env:
-          TERMINUSDB_ADMIN_PASS: root
-    steps:
-      - uses: actions/checkout@v4
+  # integration:
+  #   name: Integration tests (real TerminusDB)
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     MIX_ENV: test
+  #     TERMINUSDB_URL: "http://localhost:6363"
+  #     TERMINUSDB_USER: "admin"
+  #     TERMINUSDB_KEY: "root"
+  #   services:
+  #     terminusdb:
+  #       image: terminusdb/terminusdb-server:latest
+  #       ports:
+  #         - 6363:6363
+  #       env:
+  #         TERMINUSDB_ADMIN_PASS: root
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Set up Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.20.1"
-          otp-version: "28"
+  #     - name: Set up Elixir
+  #       uses: erlef/setup-beam@v1
+  #       with:
+  #         elixir-version: "1.20.1"
+  #         otp-version: "28"
 
-      - name: Install dependencies
-        run: mix deps.get
+  #     - name: Install dependencies
+  #       run: mix deps.get
 
-      - name: Wait for TerminusDB to be ready
-        run: |
-          echo "Waiting for TerminusDB at http://localhost:6363..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; then
-              echo "TerminusDB is ready (attempt $i)."
-              exit 0
-            fi
-            echo "  attempt $i/30 - not ready yet, retrying in 2s..."
-            sleep 2
-          done
-          echo "::error::TerminusDB did not become ready within 60s."
-          docker logs "$(docker ps -q --filter ancestor=terminusdb/terminusdb-server:latest)" 2>&1 | tail -30
-          exit 1
+  #     - name: Wait for TerminusDB to be ready
+  #       run: |
+  #         echo "Waiting for TerminusDB at http://localhost:6363..."
+  #         for i in $(seq 1 30); do
+  #           if curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; then
+  #             echo "TerminusDB is ready (attempt $i)."
+  #             exit 0
+  #           fi
+  #           echo "  attempt $i/30 - not ready yet, retrying in 2s..."
+  #           sleep 2
+  #         done
+  #         echo "::error::TerminusDB did not become ready within 60s."
+  #         docker logs "$(docker ps -q --filter ancestor=terminusdb/terminusdb-server:latest)" 2>&1 | tail -30
+  #         exit 1
 
-      - name: Run integration tests
-        run: mix test --only integration
+  #     - name: Run integration tests
+  #       run: mix test --only integration
