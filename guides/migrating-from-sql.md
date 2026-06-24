@@ -309,7 +309,7 @@ DELETE FROM comments WHERE id = 5;
   )
 
 # Delete a document
-:ok = TerminusDB.Document.delete(config, id: "Comment/xyz789", author: "admin", message: "Remove comment")
+{:ok, _} = TerminusDB.Document.delete(config, id: "Comment/xyz789", author: "admin", message: "Remove comment")
 ```
 
 ---

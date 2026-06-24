@@ -30,7 +30,11 @@ defmodule TerminusDB.ClientTest do
       req = last_request()
       assert req.method == :get
       assert request_url(req) == "http://localhost:6363/api/ok"
-      assert Req.Request.get_header(req, "user-agent") == ["terminusdb_ex/0.1.0"]
+
+      assert Req.Request.get_header(req, "user-agent") == [
+               "terminusdb_ex/#{Mix.Project.config()[:version]}"
+             ]
+
       assert Req.Request.get_header(req, "authorization") == ["Basic YWRtaW46cm9vdA=="]
     end
 
@@ -190,8 +194,19 @@ defmodule TerminusDB.ClientTest do
   end
 
   describe "resource_path/2" do
-    test "joins org and db" do
-      assert Client.resource_path("admin", "mydb") == "admin/mydb"
+    test "joins org and db from config" do
+      config = Config.with_database(Config.new(endpoint: "http://localhost:6363"), "mydb")
+      assert Client.resource_path(config, []) == "admin/mydb"
+    end
+
+    test "honors :organization override" do
+      config = Config.with_database(Config.new(endpoint: "http://localhost:6363"), "mydb")
+      assert Client.resource_path(config, organization: "acme") == "acme/mydb"
+    end
+
+    test "raises when no database is scoped" do
+      config = Config.new(endpoint: "http://localhost:6363")
+      assert_raise TerminusDB.Error, fn -> Client.resource_path(config, []) end
     end
   end
 

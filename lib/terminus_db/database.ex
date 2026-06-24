@@ -22,11 +22,12 @@ defmodule TerminusDB.Database do
 
       {:ok, details} = TerminusDB.Database.info(config, "mydb")
       true = TerminusDB.Database.exists?(config, "mydb")
-      :ok = TerminusDB.Database.delete(config, "mydb")
+      {:ok, _} = TerminusDB.Database.delete(config, "mydb")
 
   """
 
   alias TerminusDB.{Client, Error}
+  alias TerminusDB.Client.Params
 
   @type create_opt ::
           {:label, String.t()}
@@ -108,8 +109,8 @@ defmodule TerminusDB.Database do
 
   ## Examples
 
-      iex> :ok = TerminusDB.Database.delete(config, "mydb")
-      iex> :ok = TerminusDB.Database.delete(config, "mydb", force: true)
+      iex> {:ok, _} = TerminusDB.Database.delete(config, "mydb")
+      iex> {:ok, _} = TerminusDB.Database.delete(config, "mydb", force: true)
 
   """
   @spec delete(TerminusDB.Config.t(), String.t(), [delete_opt()]) ::
@@ -122,7 +123,6 @@ defmodule TerminusDB.Database do
   end
 
   @doc """
-  @doc \"""
   Deletes a database, returning the response body or raising `TerminusDB.Error`.
 
   ## Examples
@@ -169,9 +169,8 @@ defmodule TerminusDB.Database do
     org = opts[:organization] || config.organization
 
     params =
-      []
-      |> maybe_param(:branches, opts[:branches])
-      |> maybe_param(:verbose, opts[:verbose])
+      Params.flag_param(:branches, opts[:branches]) ++
+        Params.flag_param(:verbose, opts[:verbose])
 
     Client.request(config, :get, "db/#{org}/#{db_name}", params: params, area: :database)
   end
@@ -219,9 +218,8 @@ defmodule TerminusDB.Database do
   @spec list(TerminusDB.Config.t(), [info_opt()]) :: {:ok, [map()]} | {:error, Error.t()}
   def list(config, opts \\ []) do
     params =
-      []
-      |> maybe_param(:branches, opts[:branches])
-      |> maybe_param(:verbose, opts[:verbose])
+      Params.flag_param(:branches, opts[:branches]) ++
+        Params.flag_param(:verbose, opts[:verbose])
 
     Client.request(config, :get, "db", params: params, area: :database)
   end
@@ -344,9 +342,4 @@ defmodule TerminusDB.Database do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
-  defp maybe_param(params, _name, nil), do: params
-  defp maybe_param(params, _name, false), do: params
-  defp maybe_param(params, name, true), do: Keyword.put(params, name, true)
-  defp maybe_param(params, name, value), do: Keyword.put(params, name, value)
 end

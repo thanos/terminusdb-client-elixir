@@ -34,13 +34,16 @@ defmodule TerminusDB.BranchTest do
       assert body["origin"] == "admin/mydb/local/branch/main"
     end
 
-    test "honors :organization and :repo overrides" do
+    test "honors :organization and :repo overrides in both path and origin body" do
       test = self()
       adapter = capture(test, ok())
 
       Branch.create(db_config(adapter), "feature", organization: "acme", repo: "origin")
       req = last_request()
       assert req.url.path == "/api/branch/acme/mydb/origin/branch/feature"
+
+      assert {:ok, body} = Jason.decode(req.body)
+      assert body["origin"] == "acme/mydb/origin/branch/main"
     end
 
     test "raises when no database is scoped" do

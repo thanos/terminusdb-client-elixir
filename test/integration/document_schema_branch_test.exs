@@ -35,10 +35,23 @@ defmodule TerminusDB.Integration.DocumentSchemaBranchTest do
       {:ok, frames} = Schema.all(cfg)
       assert is_map(frames)
     end
+
+    test "retrieves a specific class frame after inserting a schema", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Person", "name" => "xsd:string", "age" => "xsd:integer"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      {:ok, frame} = Schema.frame(cfg, "Person")
+      assert is_map(frame)
+    end
   end
 
   describe "document lifecycle" do
-    test "insert, get, replace, and delete a document", %{config: cfg} do
+    test "insert, get, query, replace, and delete a document", %{config: cfg} do
       # Insert a schema first (Person class)
       {:ok, _} =
         Document.insert(
@@ -54,11 +67,17 @@ defmodule TerminusDB.Integration.DocumentSchemaBranchTest do
           graph_type: :schema
         )
 
-      # Insert a document
+      # Insert two documents with different ages
       {:ok, _} =
         Document.insert(cfg, %{"@type" => "Person", "name" => "Alice", "age" => 30},
           author: "admin",
           message: "add Alice"
+        )
+
+      {:ok, _} =
+        Document.insert(cfg, %{"@type" => "Person", "name" => "Bob", "age" => 25},
+          author: "admin",
+          message: "add Bob"
         )
 
       # Get all documents of type Person
@@ -68,13 +87,46 @@ defmodule TerminusDB.Integration.DocumentSchemaBranchTest do
       assert person != nil
       assert person["age"] == 30
 
+      # Query by template: only matching documents should be returned
+      {:ok, matches} = Document.query(cfg, %{"@type" => "Person", "age" => 30})
+      assert is_list(matches)
+      names = Enum.map(matches, & &1["name"])
+      assert "Alice" in names
+      refute "Bob" in names
+
       # Delete the document
       person_id = person["@id"]
-      :ok = Document.delete(cfg, id: person_id, author: "admin", message: "remove Alice")
+      {:ok, _} = Document.delete(cfg, id: person_id, author: "admin", message: "remove Alice")
 
       # Verify it's gone
       {:ok, remaining} = Document.get(cfg, type: "Person", as_list: true)
       refute Enum.any?(remaining, &(&1["name"] == "Alice"))
+    end
+
+    test "stream yields documents one at a time", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Item", "label" => "xsd:string"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      Document.insert!(
+        cfg,
+        [
+          %{"@type" => "Item", "label" => "one"},
+          %{"@type" => "Item", "label" => "two"},
+          %{"@type" => "Item", "label" => "three"}
+        ],
+        author: "admin",
+        message: "add items"
+      )
+
+      docs = Enum.to_list(Document.stream(cfg, type: "Item"))
+
+      labels = Enum.sort(Enum.map(docs, & &1["label"]))
+      assert labels == ["one", "three", "two"]
     end
   end
 

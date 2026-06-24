@@ -63,7 +63,7 @@ Database.exists?(config, "nope")  # => false
 {:ok, _} = Database.update(config, "demo", label: "Renamed DB")
 
 # Delete
-:ok = Database.delete(config, "demo")
+{:ok, _} = Database.delete(config, "demo")
 ```
 
 ## 3. Document CRUD
@@ -113,7 +113,7 @@ config = Config.with_database(config, "demo")
   )
 
 # Delete a document
-:ok = Document.delete(config, id: "Person/Alice", author: "admin", message: "remove")
+{:ok, _} = Document.delete(config, id: "Person/Alice", author: "admin", message: "remove")
 ```
 
 ## 4. Schema frames
@@ -155,7 +155,7 @@ feature_config = Config.with_branch(config, "feature")
 )
 
 # Delete the branch
-:ok = Branch.delete(config, "feature")
+{:ok, _} = Branch.delete(config, "feature")
 ```
 
 ## 6. Streaming
@@ -239,5 +239,5 @@ resp.headers["content-type"]  # => ["application/json"]
 ## Cleanup
 
 ```elixir
-:ok = Database.delete(config, "demo", force: true)
+{:ok, _} = Database.delete(config, "demo", force: true)
 ```

@@ -84,9 +84,9 @@ TerminusDB.Document.stream(config, type: "Person")
 |> Stream.run()
 
 # 11. Clean up.
-:ok = TerminusDB.Document.delete(config, id: "Person/Alice", author: "admin", message: "remove")
-:ok = TerminusDB.Branch.delete(config, "feature")
-:ok = TerminusDB.Database.delete(config, "mydb")
+{:ok, _} = TerminusDB.Document.delete(config, id: "Person/Alice", author: "admin", message: "remove")
+{:ok, _} = TerminusDB.Branch.delete(config, "feature")
+{:ok, _} = TerminusDB.Database.delete(config, "mydb")
 ```
 
 All public functions return `{:ok, result}` or `{:error, %TerminusDB.Error{}}`. Each

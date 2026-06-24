@@ -140,14 +140,28 @@ defmodule TerminusDB.Client do
   end
 
   @doc """
-  Convenience that builds the common `organization/database` resource segment.
+  Builds the `organization/database` resource segment for the given config and
+  options, resolving the organization from `opts[:organization]` or
+  `config.organization`. Raises `TerminusDB.Error` if no database is scoped.
 
-      iex> TerminusDB.Client.resource_path("admin", "mydb")
+      iex> config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+      ...> |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Client.resource_path(config, [])
       "admin/mydb"
+      iex> TerminusDB.Client.resource_path(config, organization: "acme")
+      "acme/mydb"
 
   """
-  @spec resource_path(String.t(), String.t()) :: String.t()
-  def resource_path(org, db) when is_binary(org) and is_binary(db), do: "#{org}/#{db}"
+  @spec resource_path(Config.t(), keyword()) :: String.t()
+  def resource_path(%Config{} = config, opts) do
+    org = opts[:organization] || config.organization
+
+    db =
+      config.database ||
+        raise Error, reason: :http, message: "no database scoped in config"
+
+    "#{org}/#{db}"
+  end
 
   # Request construction ------------------------------------------------------
 

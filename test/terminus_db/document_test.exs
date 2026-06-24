@@ -156,6 +156,27 @@ defmodule TerminusDB.DocumentTest do
       assert q =~ "as_list=true"
     end
 
+    test "sends unfold=false, minimized=false, compress_ids=false when explicitly disabled" do
+      test = self()
+      adapter = capture(test, ok([]))
+
+      Document.get(db_config(adapter),
+        unfold: false,
+        minimized: false,
+        compress_ids: false,
+        as_list: false
+      )
+
+      req = last_request()
+      q = req.url.query
+      # These are tri-state params (server defaults to true); an explicit false
+      # must be sent to override the default.
+      assert q =~ "unfold=false"
+      assert q =~ "minimized=false"
+      assert q =~ "compress_ids=false"
+      assert q =~ "as_list=false"
+    end
+
     test "honors :organization override" do
       test = self()
       adapter = capture(test, ok())
@@ -382,6 +403,22 @@ defmodule TerminusDB.DocumentTest do
       assert req.method == :get
       assert req.url.path == "/api/document/admin/mydb"
       assert req.url.query =~ "type=Person"
+    end
+
+    test "raises TerminusDB.Error on a non-2xx response" do
+      adapter = fn req -> {req, resp(404, %{"@type" => "api:NotFound"})} end
+
+      assert_raise Error, fn ->
+        Document.stream(db_config(adapter), type: "Person")
+      end
+    end
+
+    test "raises TerminusDB.Error on a transport error" do
+      adapter = fn req -> {req, Req.TransportError.exception(reason: :econnrefused)} end
+
+      assert_raise Error, fn ->
+        Document.stream(db_config(adapter), type: "Person")
+      end
     end
   end
 end

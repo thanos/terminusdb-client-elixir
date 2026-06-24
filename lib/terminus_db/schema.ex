@@ -26,6 +26,7 @@ defmodule TerminusDB.Schema do
   """
 
   alias TerminusDB.{Client, Config, Error}
+  alias TerminusDB.Client.Params
 
   @type frame_opt ::
           {:compress_ids, boolean()}
@@ -33,9 +34,7 @@ defmodule TerminusDB.Schema do
           | {:organization, String.t()}
 
   defp schema_path(config, opts) do
-    org = opts[:organization] || config.organization
-    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
-    "schema/#{org}/#{db}"
+    "schema/#{Client.resource_path(config, opts)}"
   end
 
   @doc """
@@ -82,8 +81,8 @@ defmodule TerminusDB.Schema do
     path = schema_path(config, opts)
 
     params =
-      maybe_bool_param(:compress_ids, opts[:compress_ids]) ++
-        maybe_bool_param(:expand_abstract, opts[:expand_abstract])
+      Params.bool_param(:compress_ids, opts[:compress_ids]) ++
+        Params.bool_param(:expand_abstract, opts[:expand_abstract])
 
     path =
       if class_name do
@@ -154,7 +153,5 @@ defmodule TerminusDB.Schema do
   def all!(config, opts \\ []), do: frame!(config, nil, opts)
 
   # For boolean params where `false` is a meaningful value (not a default to omit),
-  # we pass it through explicitly.
-  defp maybe_bool_param(_name, nil), do: []
-  defp maybe_bool_param(name, value), do: [{name, value}]
+  # we pass it through explicitly via Params.bool_param/2 (see TerminusDB.Client.Params).
 end

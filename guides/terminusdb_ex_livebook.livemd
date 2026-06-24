@@ -179,7 +179,7 @@ Enum.map(matches, & &1["name"])
 ### Delete a document
 
 ```elixir
-:ok = Document.delete(config,
+{:ok, _} = Document.delete(config,
   id: "Person/Bob",
   author: "admin",
   message: "Remove Bob"
@@ -256,7 +256,7 @@ feature_config = Config.with_branch(config, "feature-x")
 
 ```elixir
 # Delete the branch
-:ok = Branch.delete(config, "feature-x")
+{:ok, _} = Branch.delete(config, "feature-x")
 ```
 
 ## 6. Streaming
@@ -347,7 +347,7 @@ info["api:info"]["terminusdb"]["version"]
 ## Cleanup
 
 ```elixir
-:ok = Database.delete(config, "livebook_demo", force: true)
+{:ok, _} = Database.delete(config, "livebook_demo", force: true)
 ```
 
 ```elixir

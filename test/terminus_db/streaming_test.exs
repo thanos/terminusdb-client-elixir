@@ -74,40 +74,6 @@ defmodule TerminusDB.StreamingTest do
   end
 
   describe "document_stream/1" do
-    # Builds a Req.Response with a fake Req.Response.Async body whose
-    # stream_fun decodes messages sent to the current process.
-    #
-    # The `messages` argument is a list of terms to send to the process mailbox.
-    # Each message is received by the `receive` block in `next_document`, then
-    # passed to `stream_fun`. The `stream_fun` returns `{:ok, chunks}` where
-    # chunks is a keyword list like `[data: "..."]` or `[:done]`.
-    #
-    # We send a sequence of `{:data, binary}` chunks followed by `:done`, which
-    # the stream_fun translates into the `{:ok, chunks}` / `:done` format Req uses.
-    defp fake_async_response(chunks) do
-      ref = make_ref()
-
-      stream_fun = fn ^ref, message ->
-        case message do
-          {^ref, :data} -> {:ok, chunks}
-          {^ref, :done} -> {:ok, [:done]}
-          {^ref, {:error, reason}} -> {:error, reason}
-          _ -> :unknown
-        end
-      end
-
-      cancel_fun = fn ^ref -> :ok end
-
-      async = %Req.Response.Async{
-        pid: self(),
-        ref: ref,
-        stream_fun: stream_fun,
-        cancel_fun: cancel_fun
-      }
-
-      Req.Response.new(status: 200, body: async)
-    end
-
     # Sends a sequence of data chunks followed by a done signal.
     # Each `data` binary is sent as `{ref, :data}` and the stream_fun returns
     # `{:ok, [data: data]}`. A final `{ref, :done}` signals end of stream.

@@ -24,7 +24,7 @@ defmodule TerminusDB.Branch do
       true = TerminusDB.Branch.exists?(config, "feature")
 
       # Delete it
-      :ok = TerminusDB.Branch.delete(config, "feature")
+      {:ok, _} = TerminusDB.Branch.delete(config, "feature")
 
   """
 
@@ -36,10 +36,8 @@ defmodule TerminusDB.Branch do
           | {:from, String.t()}
 
   defp branch_path(config, branch_name, opts) do
-    org = opts[:organization] || config.organization
-    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
     repo = opts[:repo] || config.repo
-    "branch/#{org}/#{db}/#{repo}/branch/#{branch_name}"
+    "branch/#{Client.resource_path(config, opts)}/#{repo}/branch/#{branch_name}"
   end
 
   @doc """
@@ -70,18 +68,21 @@ defmodule TerminusDB.Branch do
       ...>   endpoint: "http://localhost:6363",
       ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
       ...> ) |> TerminusDB.Config.with_database("mydb")
-      iex> {:ok, _} = TerminusDB.Branch.create(config, "dev", from: "main")
-      :ok
+      iex> {:ok, resp} = TerminusDB.Branch.create(config, "dev", from: "main")
+      iex> resp["api:status"]
+      "api:success"
 
   """
   @spec create(Config.t(), String.t(), [branch_opt()]) ::
           {:ok, map()} | {:error, Error.t()}
   def create(config, branch_name, opts \\ []) do
     path = branch_path(config, branch_name, opts)
-    origin = opts[:from] || config.branch
+    org = opts[:organization] || config.organization
+    repo = opts[:repo] || config.repo
+    origin_branch = opts[:from] || config.branch
 
     body = %{
-      "origin" => "#{config.organization}/#{config.database}/#{config.repo}/branch/#{origin}"
+      "origin" => "#{org}/#{config.database}/#{repo}/branch/#{origin_branch}"
     }
 
     Client.request(config, :post, path, json: body, area: :branch)

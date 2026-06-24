@@ -52,6 +52,7 @@ defmodule TerminusDB.Document do
   """
 
   alias TerminusDB.{Client, Config, Error}
+  alias TerminusDB.Client.Params
 
   @type graph_type :: :instance | :schema
 
@@ -101,9 +102,7 @@ defmodule TerminusDB.Document do
   # Path building -------------------------------------------------------------
 
   defp document_path(config, opts) do
-    org = opts[:organization] || config.organization
-    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
-    "document/#{org}/#{db}"
+    "document/#{Client.resource_path(config, opts)}"
   end
 
   defp graph_type_param(opts), do: [graph_type: Atom.to_string(opts[:graph_type] || :instance)]
@@ -162,8 +161,8 @@ defmodule TerminusDB.Document do
     params =
       graph_type_param(opts) ++
         commit_params(opts) ++
-        maybe_param(:full_replace, opts[:full_replace]) ++
-        maybe_param(:raw_json, opts[:raw_json])
+        Params.flag_param(:full_replace, opts[:full_replace]) ++
+        Params.flag_param(:raw_json, opts[:raw_json])
 
     Client.request(config, :post, path, json: document, params: params, area: :document)
   end
@@ -297,9 +296,9 @@ defmodule TerminusDB.Document do
 
     params =
       graph_type_param(opts) ++
-        maybe_param(:skip, opts[:skip]) ++
-        maybe_param(:count, opts[:count]) ++
-        maybe_param(:as_list, opts[:as_list])
+        Params.flag_param(:skip, opts[:skip]) ++
+        Params.flag_param(:count, opts[:count]) ++
+        Params.bool_param(:as_list, opts[:as_list])
 
     Client.request(config, :get, path, json: template, params: params, area: :document)
   end
@@ -361,8 +360,8 @@ defmodule TerminusDB.Document do
     params =
       graph_type_param(opts) ++
         commit_params(opts) ++
-        maybe_param(:create, opts[:create]) ++
-        maybe_param(:raw_json, opts[:raw_json])
+        Params.flag_param(:create, opts[:create]) ++
+        Params.flag_param(:raw_json, opts[:raw_json])
 
     Client.request(config, :put, path, json: document, params: params, area: :document)
   end
@@ -425,8 +424,8 @@ defmodule TerminusDB.Document do
     params =
       graph_type_param(opts) ++
         commit_params(opts) ++
-        maybe_param(:nuke, opts[:nuke]) ++
-        maybe_param(:id, opts[:id])
+        Params.flag_param(:nuke, opts[:nuke]) ++
+        Params.flag_param(:id, opts[:id])
 
     Client.request(config, :delete, path, params: params, area: :document)
   end
@@ -480,35 +479,35 @@ defmodule TerminusDB.Document do
       graph_type_param(opts) ++
         get_params(opts)
 
-    {:ok, resp} =
-      Client.request_response(config, :get, path,
-        params: params,
-        into: :self,
-        area: :document
-      )
+    case Client.request_response(config, :get, path,
+           params: params,
+           into: :self,
+           area: :document
+         ) do
+      {:ok, resp} ->
+        TerminusDB.Streaming.document_stream(resp, timeout: config.receive_timeout)
 
-    TerminusDB.Streaming.document_stream(resp)
+      {:error, error} ->
+        raise error
+    end
   end
 
   # Helpers -------------------------------------------------------------------
 
   defp commit_params(opts) do
-    maybe_param(:author, opts[:author]) ++ maybe_param(:message, opts[:message])
+    Params.flag_param(:author, opts[:author]) ++ Params.flag_param(:message, opts[:message])
   end
 
   defp get_params(opts) do
-    maybe_param(:id, opts[:id]) ++
-      maybe_param(:type, opts[:type]) ++
-      maybe_param(:skip, opts[:skip]) ++
-      maybe_param(:count, opts[:count]) ++
-      maybe_param(:as_list, opts[:as_list]) ++
-      maybe_param(:unfold, opts[:unfold]) ++
-      maybe_param(:minimized, opts[:minimized]) ++
-      maybe_param(:compress_ids, opts[:compress_ids])
+    # as_list/unfold/minimized/compress_ids are tri-state: the server defaults
+    # them to true, so an explicit false must be sent to override.
+    Params.flag_param(:id, opts[:id]) ++
+      Params.flag_param(:type, opts[:type]) ++
+      Params.flag_param(:skip, opts[:skip]) ++
+      Params.flag_param(:count, opts[:count]) ++
+      Params.bool_param(:as_list, opts[:as_list]) ++
+      Params.bool_param(:unfold, opts[:unfold]) ++
+      Params.bool_param(:minimized, opts[:minimized]) ++
+      Params.bool_param(:compress_ids, opts[:compress_ids])
   end
-
-  defp maybe_param(_name, nil), do: []
-  defp maybe_param(_name, false), do: []
-  defp maybe_param(name, true), do: [{name, true}]
-  defp maybe_param(name, value), do: [{name, value}]
 end

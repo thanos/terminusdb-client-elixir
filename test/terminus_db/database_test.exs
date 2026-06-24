@@ -1,7 +1,7 @@
 defmodule TerminusDB.DatabaseTest do
   use ExUnit.Case, async: true
 
-  alias TerminusDB.{Config, Database, Error}
+  alias TerminusDB.{Database, Error}
   import TerminusDB.Test.Helpers
 
   describe "create/3" do
