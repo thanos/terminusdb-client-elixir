@@ -53,6 +53,17 @@ defmodule TerminusDB.Client do
   See the module documentation. `:area` sets the telemetry event area
   (default `:connection`). `:raw` returns the full `Req.Response.t()` instead of
   the body.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> {:ok, body} = TerminusDB.Client.request(config, :get, "ok")
+      iex> body["api:status"]
+      "api:success"
+
   """
   @spec request(Config.t(), method(), String.t(), keyword()) ::
           {:ok, term()} | {:error, Error.t()}
@@ -88,6 +99,17 @@ defmodule TerminusDB.Client do
   Performs an HTTP request and returns `{:ok, Req.Response.t()}` with the full
   response (status, headers, body). Use this when you need headers or a streamed
   body (`:into`).
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"ok" => true})} end
+      ...> )
+      iex> {:ok, resp} = TerminusDB.Client.request_response(config, :get, "ok")
+      iex> resp.status
+      200
+
   """
   @spec request_response(Config.t(), method(), String.t(), keyword()) ::
           {:ok, Req.Response.t()} | {:error, Error.t()}

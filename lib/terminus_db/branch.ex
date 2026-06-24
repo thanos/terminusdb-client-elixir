@@ -1,0 +1,196 @@
+defmodule TerminusDB.Branch do
+  @moduledoc """
+  Branch management API for TerminusDB.
+
+  Wraps the `/api/branch/{path}` endpoints. Branches are git-like pointers to
+  commits within a repository. Creating a branch forks from an existing branch
+  (default: `main`).
+
+  All functions require a `TerminusDB.Config` scoped to a database (via
+  `TerminusDB.Config.with_database/2`). The organization defaults to
+  `config.organization` and the repository to `config.repo` (default `local`),
+  both overridable per call.
+
+  ## Quick start
+
+      config =
+        TerminusDB.Config.new(endpoint: "http://localhost:6363")
+        |> TerminusDB.Config.with_database("mydb")
+
+      # Create a branch (forks from main by default)
+      {:ok, _} = TerminusDB.Branch.create(config, "feature")
+
+      # Check it exists
+      true = TerminusDB.Branch.exists?(config, "feature")
+
+      # Delete it
+      :ok = TerminusDB.Branch.delete(config, "feature")
+
+  """
+
+  alias TerminusDB.{Client, Config, Error}
+
+  @type branch_opt ::
+          {:organization, String.t()}
+          | {:repo, String.t()}
+          | {:from, String.t()}
+
+  defp branch_path(config, branch_name, opts) do
+    org = opts[:organization] || config.organization
+    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
+    repo = opts[:repo] || config.repo
+    "branch/#{org}/#{db}/#{repo}/branch/#{branch_name}"
+  end
+
+  @doc """
+  Creates a new branch `branch_name` in the configured (or given) repository.
+
+  The branch is forked from the branch named in `:from` (default: `config.branch`,
+  which defaults to `"main"`).
+
+  ## Options
+
+  - `:from` — the branch to fork from (default: `config.branch`).
+  - `:organization` — overrides `config.organization`.
+  - `:repo` — overrides `config.repo` (`local` or a remote name).
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, resp} = TerminusDB.Branch.create(config, "feature")
+      iex> resp["api:status"]
+      "api:success"
+
+  Fork from a specific branch:
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, _} = TerminusDB.Branch.create(config, "dev", from: "main")
+      :ok
+
+  """
+  @spec create(Config.t(), String.t(), [branch_opt()]) ::
+          {:ok, map()} | {:error, Error.t()}
+  def create(config, branch_name, opts \\ []) do
+    path = branch_path(config, branch_name, opts)
+    origin = opts[:from] || config.branch
+
+    body = %{
+      "origin" => "#{config.organization}/#{config.database}/#{config.repo}/branch/#{origin}"
+    }
+
+    Client.request(config, :post, path, json: body, area: :branch)
+  end
+
+  @doc """
+  Creates a branch, returning the response body or raising `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Branch.create!(config, "feature")
+      %{"api:status" => "api:success"}
+
+  """
+  @spec create!(Config.t(), String.t(), [branch_opt()]) :: map()
+  def create!(config, branch_name, opts \\ []) do
+    case create(config, branch_name, opts) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Deletes the branch `branch_name`.
+
+  ## Options
+
+  - `:organization` — overrides `config.organization`.
+  - `:repo` — overrides `config.repo`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, resp} = TerminusDB.Branch.delete(config, "feature")
+      iex> resp["api:status"]
+      "api:success"
+
+  """
+  @spec delete(Config.t(), String.t(), [branch_opt()]) ::
+          {:ok, map() | nil} | {:error, Error.t()}
+  def delete(config, branch_name, opts \\ []) do
+    path = branch_path(config, branch_name, opts)
+    Client.request(config, :delete, path, area: :branch)
+  end
+
+  @doc """
+  Deletes a branch, returning the response body or raising `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Branch.delete!(config, "feature")
+      %{"api:status" => "api:success"}
+
+  """
+  @spec delete!(Config.t(), String.t(), [branch_opt()]) :: map() | nil
+  def delete!(config, branch_name, opts \\ []) do
+    case delete(config, branch_name, opts) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Returns `true` if the branch `branch_name` exists, `false` otherwise.
+
+  Uses `HEAD` on the branch resource. A 404 means the branch does not exist;
+  any other non-success response raises `TerminusDB.Error`.
+
+  ## Options
+
+  - `:organization` — overrides `config.organization`.
+  - `:repo` — overrides `config.repo`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: "")} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Branch.exists?(config, "main")
+      true
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 404, body: "")} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Branch.exists?(config, "missing")
+      false
+
+  """
+  @spec exists?(Config.t(), String.t(), [branch_opt()]) :: boolean()
+  def exists?(config, branch_name, opts \\ []) do
+    path = branch_path(config, branch_name, opts)
+
+    case Client.request_response(config, :head, path, area: :branch) do
+      {:ok, _resp} -> true
+      {:error, %Error{status: 404}} -> false
+      {:error, error} -> raise error
+    end
+  end
+end

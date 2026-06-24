@@ -112,11 +112,15 @@ defmodule TerminusDB.MixProject do
       main: "readme",
       extras: [
         {"README.md", [title: "Overview"]},
+        {"guides/introduction.md", [title: "Introduction to TerminusDB"]},
+        {"guides/migrating-from-sql.md", [title: "Migrating from SQL"]},
+        {"guides/overview.md", [title: "Overview Guide"]},
         {"CHANGELOG.md", [title: "Changelog"]},
         {"ARCHITECTURE.md", [title: "Architecture"]},
         {"LICENSE", [title: "License"]}
       ],
       groups_for_extras: [
+        Guides: ["guides/introduction.md", "guides/migrating-from-sql.md", "guides/overview.md"],
         Architecture: ["ARCHITECTURE.md"]
       ],
       source_ref: "v#{@version}",

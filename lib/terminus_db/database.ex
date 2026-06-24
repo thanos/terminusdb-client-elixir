@@ -79,6 +79,16 @@ defmodule TerminusDB.Database do
 
   @doc """
   Creates a database, returning the response body or raising `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> TerminusDB.Database.create!(config, "mydb", label: "My DB")
+      %{"api:status" => "api:success"}
+
   """
   @spec create!(TerminusDB.Config.t(), String.t(), [create_opt()]) :: map()
   def create!(config, db_name, opts \\ []) do
@@ -112,7 +122,18 @@ defmodule TerminusDB.Database do
   end
 
   @doc """
+  @doc \"""
   Deletes a database, returning the response body or raising `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> TerminusDB.Database.delete!(config, "mydb")
+      %{"api:status" => "api:success"}
+
   """
   @spec delete!(TerminusDB.Config.t(), String.t(), [delete_opt()]) :: map() | nil
   def delete!(config, db_name, opts \\ []) do
@@ -130,6 +151,17 @@ defmodule TerminusDB.Database do
   - `:branches` — include branch information (default `false`).
   - `:verbose` — return all available information (default `false`).
   - `:organization` — overrides `config.organization`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"name" => "mydb", "@type" => "UserDatabase"}])} end
+      ...> )
+      iex> {:ok, details} = TerminusDB.Database.info(config, "mydb")
+      iex> hd(details)["name"]
+      "mydb"
+
   """
   @spec info(TerminusDB.Config.t(), String.t(), [info_opt()]) ::
           {:ok, [map()]} | {:error, Error.t()}
@@ -146,6 +178,16 @@ defmodule TerminusDB.Database do
 
   @doc """
   Returns database details, or raises `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"name" => "mydb"}])} end
+      ...> )
+      iex> TerminusDB.Database.info!(config, "mydb")
+      [%{"name" => "mydb"}]
+
   """
   @spec info!(TerminusDB.Config.t(), String.t(), [info_opt()]) :: [map()]
   def info!(config, db_name, opts \\ []) do
@@ -162,6 +204,17 @@ defmodule TerminusDB.Database do
 
   - `:branches` — include branch information (default `false`).
   - `:verbose` — return all available information (default `false`).
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"name" => "a"}, %{"name" => "b"}])} end
+      ...> )
+      iex> {:ok, dbs} = TerminusDB.Database.list(config)
+      iex> Enum.map(dbs, & &1["name"])
+      ["a", "b"]
+
   """
   @spec list(TerminusDB.Config.t(), [info_opt()]) :: {:ok, [map()]} | {:error, Error.t()}
   def list(config, opts \\ []) do
@@ -175,6 +228,16 @@ defmodule TerminusDB.Database do
 
   @doc """
   Lists all databases, or raises `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"name" => "mydb"}])} end
+      ...> )
+      iex> TerminusDB.Database.list!(config)
+      [%{"name" => "mydb"}]
+
   """
   @spec list!(TerminusDB.Config.t(), [info_opt()]) :: [map()]
   def list!(config, opts \\ []) do
@@ -193,6 +256,23 @@ defmodule TerminusDB.Database do
   ## Options
 
   - `:organization` — overrides `config.organization`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: "")} end
+      ...> )
+      iex> TerminusDB.Database.exists?(config, "mydb")
+      true
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 404, body: "")} end
+      ...> )
+      iex> TerminusDB.Database.exists?(config, "missing")
+      false
+
   """
   @spec exists?(TerminusDB.Config.t(), String.t(), [delete_opt()]) :: boolean()
   def exists?(config, db_name, opts \\ []) do
@@ -210,6 +290,17 @@ defmodule TerminusDB.Database do
 
   Accepts the same body options as `create/3` (`:label`, `:comment`, `:schema`,
   `:public`, `:prefixes`) plus `:organization`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> {:ok, resp} = TerminusDB.Database.update(config, "mydb", label: "New Label")
+      iex> resp["api:status"]
+      "api:success"
+
   """
   @spec update(TerminusDB.Config.t(), String.t(), [create_opt()]) ::
           {:ok, map()} | {:error, Error.t()}
@@ -230,6 +321,16 @@ defmodule TerminusDB.Database do
 
   @doc """
   Updates a database, returning the response body or raising `TerminusDB.Error`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> TerminusDB.Database.update!(config, "mydb", label: "New Label")
+      %{"api:status" => "api:success"}
+
   """
   @spec update!(TerminusDB.Config.t(), String.t(), [create_opt()]) :: map()
   def update!(config, db_name, opts \\ []) do
