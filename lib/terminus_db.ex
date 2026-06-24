@@ -3,16 +3,16 @@ defmodule TerminusDB do
   An idiomatic Elixir client for [TerminusDB](https://terminusdb.org), the document
   graph database with built-in version control.
 
-  v0.1 provides the foundation: an immutable `TerminusDB.Config` for connection
-  context, a Req-based `TerminusDB.Client` HTTP layer, a typed `TerminusDB.Error`,
-  the `TerminusDB.Database` management API, and `TerminusDB.Telemetry` events on
-  every operation. Connection context is **immutable data**, making it safe for
-  concurrent use.
+  The client provides an immutable `TerminusDB.Config` for connection context, a
+  Req-based `TerminusDB.Client` HTTP layer, a typed `TerminusDB.Error`, the
+  `TerminusDB.Database` management API, `TerminusDB.Document` CRUD with streaming,
+  `TerminusDB.Schema` frame retrieval, `TerminusDB.Branch` management, and
+  `TerminusDB.Telemetry` events on every operation. Connection context is
+  **immutable data**, making it safe for concurrent use.
 
-  Document, schema, branch, commit, diff, merge, WOQL, GraphQL, and streaming
-  APIs, plus optional Ecto and ExDatalog integrations, are planned for later
-  milestones. See `ARCHITECTURE.md` and the ADRs (under `docs/adr/`) for the full
-  design and roadmap.
+  Commit, diff, merge, WOQL DSL, GraphQL, and optional Ecto/ExDatalog
+  integrations are planned for later milestones. See `ARCHITECTURE.md` and the
+  ADRs (under `docs/adr/`) for the full design and roadmap.
 
   ## Quick start
 

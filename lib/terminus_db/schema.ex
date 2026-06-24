@@ -152,6 +152,6 @@ defmodule TerminusDB.Schema do
   @spec all!(Config.t(), [frame_opt()]) :: map()
   def all!(config, opts \\ []), do: frame!(config, nil, opts)
 
-  # For boolean params where `false` is a meaningful value (not a default to omit),
-  # we pass it through explicitly via Params.bool_param/2 (see TerminusDB.Client.Params).
+  # For boolean params where `false` is a meaningful value (not a default to
+  # omit), we pass it through explicitly via Params.bool_param/2.
 end

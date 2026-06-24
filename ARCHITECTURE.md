@@ -136,10 +136,11 @@ the graph engine.
 
 **Adopt Option C as the target architecture, delivered incrementally.**
 
-- **v0.1 (this milestone):** Option A core - `Client`, `Config`, `Error`, `Database`,
-  telemetry, streaming, and the WOQL/raw-query execution primitives. This is the
-  verifiable foundation everything else builds on.
-- **v0.2:** Document + Schema + Branch + Commit + Diff + Merge APIs and the WOQL DSL.
+- **v0.1 (done):** Option A core - `Client`, `Config`, `Error`, `Database`,
+  telemetry, and the HTTP/wire primitives.
+- **v0.2 (done):** Document CRUD + query + streaming, Schema frame retrieval,
+  Branch management, and the concatenated-JSON streaming decoder.
+- **v0.2.1+:** Commit, Diff, Merge, GraphQL, and the WOQL functional DSL.
 - **v0.3:** Ecto integration (`TerminusDB.Schema`) - Option B.
 - **v0.4:** ExDatalog integration - Option C.
 - **Option D is rejected** for v0.x; a local engine is out of scope for a client.
@@ -156,19 +157,20 @@ TerminusDB
 ├── Application           OTP supervision tree
 ├── Config                immutable connection/context (NimbleOptions-validated)
 ├── Client                Req-based HTTP wrapper; the only module that touches the wire
+│   └── Params            internal query-param helpers (flag/bool)
 ├── Error                 typed error struct + exception
 ├── Database              database management API
-├── Document              document CRUD + query            (v0.2)
-├── Schema                schema frame API + Ecto macro    (v0.2/v0.3)
-├── Branch                branch API                       (v0.2)
-├── Commit                history / log                    (v0.2)
-├── Diff                  diff + patch                     (v0.2)
-├── Merge                 push / pull / rebase             (v0.2)
-├── WOQL                  functional DSL → JSON-LD         (v0.2)
-├── GraphQL               GraphQL execution                (v0.2)
-├── Datalog               ExDatalog integration            (v0.4)
-├── Telemetry             event definitions + helpers
-└── Streaming             document stream helpers
+├── Document              document CRUD + query + streaming   ✓ v0.2
+├── Schema                schema frame API                    ✓ v0.2
+├── Branch                branch API                          ✓ v0.2
+├── Streaming             concatenated-JSON stream decoder    ✓ v0.2
+├── Commit                history / log                       (v0.2.1+)
+├── Diff                  diff + patch                        (v0.2.1+)
+├── Merge                 push / pull / rebase                (v0.2.1+)
+├── WOQL                  functional DSL → JSON-LD            (v0.2.1+)
+├── GraphQL               GraphQL execution                   (v0.2.1+)
+├── Datalog               ExDatalog integration               (v0.4)
+└── Telemetry             event definitions + helpers
 ```
 
 ### 3.1 Principles
