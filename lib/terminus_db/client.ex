@@ -53,6 +53,17 @@ defmodule TerminusDB.Client do
   See the module documentation. `:area` sets the telemetry event area
   (default `:connection`). `:raw` returns the full `Req.Response.t()` instead of
   the body.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> {:ok, body} = TerminusDB.Client.request(config, :get, "ok")
+      iex> body["api:status"]
+      "api:success"
+
   """
   @spec request(Config.t(), method(), String.t(), keyword()) ::
           {:ok, term()} | {:error, Error.t()}
@@ -88,6 +99,17 @@ defmodule TerminusDB.Client do
   Performs an HTTP request and returns `{:ok, Req.Response.t()}` with the full
   response (status, headers, body). Use this when you need headers or a streamed
   body (`:into`).
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"ok" => true})} end
+      ...> )
+      iex> {:ok, resp} = TerminusDB.Client.request_response(config, :get, "ok")
+      iex> resp.status
+      200
+
   """
   @spec request_response(Config.t(), method(), String.t(), keyword()) ::
           {:ok, Req.Response.t()} | {:error, Error.t()}
@@ -118,14 +140,28 @@ defmodule TerminusDB.Client do
   end
 
   @doc """
-  Convenience that builds the common `organization/database` resource segment.
+  Builds the `organization/database` resource segment for the given config and
+  options, resolving the organization from `opts[:organization]` or
+  `config.organization`. Raises `TerminusDB.Error` if no database is scoped.
 
-      iex> TerminusDB.Client.resource_path("admin", "mydb")
+      iex> config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+      ...> |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Client.resource_path(config, [])
       "admin/mydb"
+      iex> TerminusDB.Client.resource_path(config, organization: "acme")
+      "acme/mydb"
 
   """
-  @spec resource_path(String.t(), String.t()) :: String.t()
-  def resource_path(org, db) when is_binary(org) and is_binary(db), do: "#{org}/#{db}"
+  @spec resource_path(Config.t(), keyword()) :: String.t()
+  def resource_path(%Config{} = config, opts) do
+    org = opts[:organization] || config.organization
+
+    db =
+      config.database ||
+        raise Error, reason: :http, message: "no database scoped in config"
+
+    "#{org}/#{db}"
+  end
 
   # Request construction ------------------------------------------------------
 

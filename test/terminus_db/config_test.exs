@@ -23,7 +23,7 @@ defmodule TerminusDB.ConfigTest do
       assert config.ref == nil
       assert config.telemetry == true
       assert config.receive_timeout == 15_000
-      assert config.user_agent == "terminusdb_ex/0.1.0"
+      assert config.user_agent == "terminusdb_ex/#{Mix.Project.config()[:version]}"
     end
 
     test "accepts overrides" do

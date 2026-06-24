@@ -61,12 +61,17 @@ defmodule TerminusDB.TelemetryTest do
     end
 
     test "is a no-op when telemetry is disabled" do
-      meta = %{path: "db/admin/mydb", method: :post}
+      # Use a unique path so the unfiltered refute_receive does not catch
+      # :database events leaked from other concurrent tests (telemetry is
+      # global). We never emit on this path (telemetry disabled), so we should
+      # receive nothing tagged with it.
+      unique = "telemetry/noop-#{:erlang.unique_integer([:positive])}"
+      meta = %{path: unique, method: :post}
 
       assert Telemetry.start(:database, meta, @disabled) == nil
       assert Telemetry.stop(:database, meta, nil, @disabled, status: 200) == nil
 
-      refute_receive {:event, _, _, _}, 10
+      refute_receive {:event, _, _, %{path: ^unique}}, 10
     end
   end
 end

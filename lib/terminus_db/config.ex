@@ -150,6 +150,13 @@ defmodule TerminusDB.Config do
 
   @doc """
   The NimbleOptions schema used to validate `new/1` options.
+
+  ## Examples
+
+      iex> schema = TerminusDB.Config.schema()
+      iex> Keyword.has_key?(schema, :endpoint)
+      true
+
   """
   @spec schema() :: keyword()
   def schema, do: @schema
@@ -236,6 +243,13 @@ defmodule TerminusDB.Config do
 
   @doc """
   Scopes `config` to the given repository (`local` or a remote name).
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+      iex> TerminusDB.Config.with_repo(config, "origin").repo
+      "origin"
+
   """
   @spec with_repo(t(), String.t()) :: t()
   def with_repo(%__MODULE__{} = config, repo) when is_binary(repo) do
@@ -244,6 +258,13 @@ defmodule TerminusDB.Config do
 
   @doc """
   Pins `config` to a commit reference for time-travel queries.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+      iex> TerminusDB.Config.with_ref(config, "commit/abc123").ref
+      "commit/abc123"
+
   """
   @spec with_ref(t(), String.t()) :: t()
   def with_ref(%__MODULE__{} = config, ref) when is_binary(ref) do

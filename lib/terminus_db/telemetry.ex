@@ -57,6 +57,15 @@ defmodule TerminusDB.Telemetry do
 
   Returns the monotonic time captured for the measurement, so callers can pass it to
   `stop/4`. No-op when `config.telemetry` is `false`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+      iex> meta = %{path: "db/admin/mydb", method: :post}
+      iex> start_time = TerminusDB.Telemetry.start(:database, meta, config)
+      iex> is_integer(start_time)
+      true
+
   """
   @spec start(area(), map(), TerminusDB.Config.t()) :: integer() | nil
   def start(area, meta, %TerminusDB.Config{telemetry: true}) do
@@ -72,6 +81,16 @@ defmodule TerminusDB.Telemetry do
 
   Accepts an optional `status` (HTTP status code) and `error` (`TerminusDB.Error.t()`)
   to include in the metadata. No-op when `config.telemetry` is `false`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
+      iex> meta = %{path: "db/admin/mydb", method: :post, config: TerminusDB.Config.redact(config)}
+      iex> start_time = TerminusDB.Telemetry.start(:database, meta, config)
+      iex> :ok = TerminusDB.Telemetry.stop(:database, meta, start_time, config, status: 200, error: nil)
+      iex> :ok
+      :ok
+
   """
   @spec stop(area(), map(), integer() | nil, TerminusDB.Config.t(), keyword()) :: :ok | nil
   def stop(area, meta, start_monotonic, %TerminusDB.Config{telemetry: true}, opts) do

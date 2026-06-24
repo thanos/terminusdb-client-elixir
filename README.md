@@ -11,11 +11,11 @@ graph database with built-in version control. It is built on
 [Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
 making it safe for concurrent use.
 
-> **Status:** v0.1 (foundation). `Config`, `Error`, `Telemetry`, `Client`, and the
-> `Database` management API are implemented and tested. Document, schema, branch,
-> commit, diff, merge, WOQL, GraphQL, and streaming APIs, plus optional Ecto and
-> ExDatalog integrations, are planned for later milestones. See `ARCHITECTURE.md`
-> and `AGENTS.md` for the roadmap.
+> **Status:** v0.2.0. `Config`, `Error`, `Telemetry`, `Client`, `Database`,
+> `Document` (with streaming), `Schema`, and `Branch` are implemented and tested.
+> Commit, diff, merge, WOQL DSL, GraphQL, and optional Ecto/ExDatalog integrations
+> are planned for later milestones. See `ARCHITECTURE.md` and `AGENTS.md` for the
+> roadmap.
 
 ## Installation
 
@@ -24,7 +24,7 @@ Add `terminusdb_client` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:terminusdb_client, "~> 0.1.0"}
+    {:terminusdb_client, "~> 0.2.0"}
   ]
 end
 ```
@@ -37,7 +37,7 @@ Then run `mix deps.get`.
 # 1. Configure a connection (immutable context). Default auth is admin:root.
 config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
 
-# 2. Create a database.
+# 2. Create a database with a schema graph.
 {:ok, _} =
   TerminusDB.Database.create(config, "mydb",
     label: "My Database",
@@ -45,15 +45,49 @@ config = TerminusDB.Config.new(endpoint: "http://localhost:6363")
     schema: true
   )
 
-# 3. Inspect it.
-{:ok, details} = TerminusDB.Database.info(config, "mydb")
-true = TerminusDB.Database.exists?(config, "mydb")
-
-# 4. Scope the config to a database (for later document work).
+# 3. Scope the config to the database for document operations.
 config = TerminusDB.Config.with_database(config, "mydb")
 
-# 5. Clean up.
-:ok = TerminusDB.Database.delete(config, "mydb")
+# 4. Insert a schema (a Class document in the schema graph).
+{:ok, _} =
+  TerminusDB.Document.insert(config,
+    %{"@type" => "Class", "@id" => "Person", "name" => "xsd:string", "age" => "xsd:integer"},
+    author: "admin", message: "add Person schema",
+    graph_type: :schema
+  )
+
+# 5. Insert a document (an instance of Person).
+{:ok, _} =
+  TerminusDB.Document.insert(config,
+    %{"@type" => "Person", "name" => "Alice", "age" => 30},
+    author: "admin", message: "add Alice"
+  )
+
+# 6. Retrieve documents by type.
+{:ok, docs} = TerminusDB.Document.get(config, type: "Person", as_list: true)
+# => [%{"@id" => "Person/Alice", "name" => "Alice", "age" => 30}]
+
+# 7. Query by template (match all Person documents with age 30).
+{:ok, matches} =
+  TerminusDB.Document.query(config, %{"@type" => "Person", "age" => 30})
+
+# 8. Retrieve the schema frame for the Person class.
+{:ok, frame} = TerminusDB.Schema.frame(config, "Person")
+# => %{"@type" => "Class", "name" => "xsd:string", "age" => "xsd:integer"}
+
+# 9. Create a branch and work on it.
+{:ok, _} = TerminusDB.Branch.create(config, "feature")
+feature_config = TerminusDB.Config.with_branch(config, "feature")
+
+# 10. Stream large result sets without loading everything into memory.
+TerminusDB.Document.stream(config, type: "Person")
+|> Stream.each(&IO.inspect/1)
+|> Stream.run()
+
+# 11. Clean up.
+{:ok, _} = TerminusDB.Document.delete(config, id: "Person/Alice", author: "admin", message: "remove")
+{:ok, _} = TerminusDB.Branch.delete(config, "feature")
+{:ok, _} = TerminusDB.Database.delete(config, "mydb")
 ```
 
 All public functions return `{:ok, result}` or `{:error, %TerminusDB.Error{}}`. Each

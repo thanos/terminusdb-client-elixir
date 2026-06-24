@@ -1,0 +1,357 @@
+<!-- livebook:{"attrs":[],"chunks":[],"on":[{"tag":"activate","_id":null}],"persisted":true} -->
+
+# terminusdb_ex Livebook Demo
+
+```elixir
+Mix.install([
+  {:terminusdb_client, "~> 0.1.0"}
+])
+```
+
+## Setup
+
+Start a TerminusDB server first:
+
+```bash
+docker run -d --name terminusdb -p 6363:6363 -e TERMINUSDB_ADMIN_PASS=root terminusdb/terminusdb-server:latest
+```
+
+Then wait for it to be ready:
+
+```elixir
+endpoint = "http://localhost:6363"
+
+# Wait for the server to be ready
+for _ <- 1..30 do
+  case Req.get("#{endpoint}/api/ok") do
+    {:ok, %{status: 200}} -> :ok
+    _ -> Process.sleep(1000)
+  end
+end
+```
+
+## 1. Configuration
+
+```elixir
+alias TerminusDB.{Config, Database, Document, Schema, Branch, Client, Error}
+
+config = Config.new(endpoint: endpoint)
+```
+
+```
+ => %TerminusDB.Config{endpoint: "http://localhost:6363", user: "admin", key: "root", ...}
+```
+
+```elixir
+# Inspect auth
+Config.auth(config)
+```
+
+```
+ => {:basic, "admin:root"}
+```
+
+```elixir
+# Redact secrets for safe logging
+Config.redact(config)
+```
+
+```
+ => %TerminusDB.Config{key: "[redacted]", token: nil, ...}
+```
+
+## 2. Database management
+
+```elixir
+# Create a database with a schema graph
+{:ok, _} = Database.create(config, "livebook_demo",
+  label: "Livebook Demo",
+  comment: "A database for the livebook walkthrough",
+  schema: true
+)
+```
+
+```
+ => {:ok, %{"@type" => "api:DbCreateResponse", "api:status" => "api:success"}}
+```
+
+```elixir
+# Check it exists
+Database.exists?(config, "livebook_demo")
+```
+
+```
+ => true
+```
+
+```elixir
+# List all databases
+{:ok, dbs} = Database.list(config)
+Enum.map(dbs, & &1["name"])
+```
+
+```
+ => ["livebook_demo"]
+```
+
+## 3. Document operations
+
+Scope the config to the database:
+
+```elixir
+config = Config.with_database(config, "livebook_demo")
+```
+
+### Insert a schema
+
+```elixir
+{:ok, _} =
+  Document.insert(config,
+    %{
+      "@type" => "Class",
+      "@id" => "Person",
+      "name" => "xsd:string",
+      "age" => "xsd:integer",
+      "email" => "xsd:string"
+    },
+    author: "admin",
+    message: "Add Person schema",
+    graph_type: :schema
+  )
+```
+
+### Insert documents
+
+```elixir
+{:ok, _} =
+  Document.insert(config,
+    %{"@type" => "Person", "name" => "Alice", "age" => 30, "email" => "alice@example.com"},
+    author: "admin",
+    message: "Add Alice"
+  )
+```
+
+```elixir
+{:ok, _} =
+  Document.insert(config, [
+    %{"@type" => "Person", "name" => "Bob", "age" => 25, "email" => "bob@example.com"},
+    %{"@type" => "Person", "name" => "Carol", "age" => 28, "email" => "carol@example.com"}
+  ], author: "admin", message: "Add Bob and Carol")
+```
+
+### Retrieve documents
+
+```elixir
+{:ok, docs} = Document.get(config, type: "Person", as_list: true)
+Enum.map(docs, & &1["name"])
+```
+
+```
+ => ["Alice", "Bob", "Carol"]
+```
+
+### Query by template
+
+```elixir
+{:ok, matches} =
+  Document.query(config, %{"@type" => "Person", "age" => 28})
+
+Enum.map(matches, & &1["name"])
+```
+
+```
+ => ["Carol"]
+```
+
+### Replace (update) a document
+
+```elixir
+{:ok, person} = Document.get(config, id: "Person/Alice", as_list: false)
+
+{:ok, _} =
+  Document.replace(config,
+    Map.put(person, "age", 31),
+    author: "admin",
+    message: "Happy birthday Alice"
+  )
+```
+
+### Delete a document
+
+```elixir
+{:ok, _} = Document.delete(config,
+  id: "Person/Bob",
+  author: "admin",
+  message: "Remove Bob"
+)
+```
+
+## 4. Schema frames
+
+```elixir
+{:ok, frame} = Schema.frame(config, "Person")
+```
+
+```
+ => %{"@type" => "Class", "name" => "xsd:string", "age" => "xsd:integer", ...}
+```
+
+```elixir
+{:ok, all} = Schema.all(config)
+Map.keys(all)
+```
+
+```
+ => ["Person"]
+```
+
+## 5. Branches
+
+```elixir
+# Create a branch
+{:ok, _} = Branch.create(config, "feature-x")
+```
+
+```elixir
+# It exists
+Branch.exists?(config, "feature-x")
+```
+
+```
+ => true
+```
+
+```elixir
+# Switch to it
+feature_config = Config.with_branch(config, "feature-x")
+
+# Insert on the branch
+{:ok, _} =
+  Document.insert(feature_config,
+    %{"@type" => "Person", "name" => "Dave", "age" => 40},
+    author: "admin",
+    message: "Add Dave on feature branch"
+  )
+```
+
+```elixir
+# Dave is on the feature branch
+{:ok, feature_docs} = Document.get(feature_config, type: "Person", as_list: true)
+"Dave" in Enum.map(feature_docs, & &1["name"])
+```
+
+```
+ => true
+```
+
+```elixir
+# Dave is NOT on the main branch
+{:ok, main_docs} = Document.get(config, type: "Person", as_list: true)
+"Dave" in Enum.map(main_docs, & &1["name"])
+```
+
+```
+ => false
+```
+
+```elixir
+# Delete the branch
+{:ok, _} = Branch.delete(config, "feature-x")
+```
+
+## 6. Streaming
+
+```elixir
+# Stream documents one at a time (constant memory for large result sets)
+Document.stream(config, type: "Person")
+|> Stream.map(& &1["name"])
+|> Enum.to_list()
+```
+
+```
+ => ["Alice", "Carol"]
+```
+
+## 7. Telemetry
+
+```elixir
+:telemetry.attach_many(
+  "livebook-telemetry",
+  [[:terminusdb, :document, :stop], [:terminusdb, :database, :stop]],
+  fn _event, measurements, meta, _ctx ->
+    duration_ms = System.convert_time_unit(measurements[:duration] || 0, :native, :millisecond)
+    IO.puts("[#{meta.area}] #{meta.method} #{meta.path} -> #{meta.status} (#{duration_ms}ms)")
+  end,
+  nil
+)
+```
+
+```elixir
+# Now operations emit telemetry events
+{:ok, _} = Document.insert(config,
+  %{"@type" => "Person", "name" => "Eve", "age" => 35},
+  author: "admin",
+  message: "Add Eve"
+)
+```
+
+```
+ [document] :post document/admin/livebook_demo -> 200 (15ms)
+```
+
+```elixir
+:telemetry.detach("livebook-telemetry")
+```
+
+## 8. Error handling
+
+```elixir
+# Tuple-returning (non-raising)
+case Database.create(config, "livebook_demo", label: "Duplicate") do
+  {:ok, _} ->
+    IO.puts("Created (unexpected)")
+
+  {:error, %Error{reason: :api, api_type: "api:DatabaseAlreadyExists"} = e} ->
+    IO.puts("Expected error: #{Exception.message(e)}")
+
+  {:error, %Error{} = e} ->
+    IO.puts("Other error: #{Exception.message(e)}")
+end
+```
+
+```
+ Expected error: TerminusDB API error 400 (api:DatabaseAlreadyExists): Database already exists.
+```
+
+```elixir
+# Raising variant
+Database.create!(config, "livebook_demo", label: "Duplicate")
+```
+
+```
+ ** (TerminusDB.Error) TerminusDB API error 400 (api:DatabaseAlreadyExists): Database already exists.
+```
+
+## 9. Raw client
+
+```elixir
+# Direct access to any endpoint
+{:ok, info} = Client.request(config, :get, "info")
+info["api:info"]["terminusdb"]["version"]
+```
+
+```
+ => "12.0.5"
+```
+
+## Cleanup
+
+```elixir
+{:ok, _} = Database.delete(config, "livebook_demo", force: true)
+```
+
+```elixir
+# Stop the container
+# System.cmd("docker", ["stop", "terminusdb"])
+# System.cmd("docker", ["rm", "terminusdb"])
+```

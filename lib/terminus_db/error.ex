@@ -50,6 +50,13 @@ defmodule TerminusDB.Error do
 
   @doc """
   Builds a `:transport` error from an underlying exception (e.g. `Req.TransportError`).
+
+  ## Examples
+
+      iex> error = TerminusDB.Error.transport(Req.TransportError.exception(reason: :econnrefused))
+      iex> error.reason
+      :transport
+
   """
   @spec transport(Exception.t()) :: t()
   def transport(%{__exception__: true} = exception) do
@@ -62,6 +69,13 @@ defmodule TerminusDB.Error do
 
   @doc """
   Builds an `:http` error from a non-2xx status with an unstructured body.
+
+  ## Examples
+
+      iex> error = TerminusDB.Error.http(503, "service unavailable")
+      iex> error.reason
+      :http
+
   """
   @spec http(pos_integer(), term()) :: t()
   def http(status, body) when is_integer(status) do
