@@ -13,6 +13,7 @@ defmodule TerminusDB.Error do
   | `:http`     | Non-2xx response with a non-JSON or unstructured body |
   | `:api`      | TerminusDB API error (structured `api:*` JSON body)  |
   | `:decode`   | Response body could not be decoded as JSON           |
+  | `:config`   | Missing or invalid client configuration               |
 
   ## Examples
 
@@ -31,7 +32,7 @@ defmodule TerminusDB.Error do
 
   """
 
-  @type reason :: :transport | :http | :api | :decode
+  @type reason :: :transport | :http | :api | :decode | :config
 
   @type t :: %__MODULE__{
           reason: reason(),

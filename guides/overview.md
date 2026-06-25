@@ -335,7 +335,7 @@ import TerminusDB.WOQL
 query =
   select(["v:Name"],
     and_([
-      triple("v:Person", "rdf:type", "@schema:Person"),
+      triple("v:Person", "rdf:type", iri("@schema:Person")),
       triple("v:Person", "name", "v:Name")
     ])
   )
@@ -366,15 +366,15 @@ query = type_of("v:Person", "v:Type")
 
 # Serialize to JSON-LD (inspect the wire format)
 jsonld = WOQL.to_jsonld(query)
-# => %{"@type" => "TypeOf", "value" => %{"@type" => "DataValue", ...}, ...}
+# => %{"@type" => "TypeOf", "value" => %{"@type" => "Value", ...}, ...}
 
 # Deserialize back
-WOQL.from_jsonld(jsonld)  # => %WOQL.Query{op: :type_of, args: [...]}
+WOQL.from_jsonld(jsonld)  # => %TerminusDB.WOQL{op: :type_of, args: [...]}
 
 # Write query with commit metadata
 query =
   and_([
-    triple("v:New", "rdf:type", "@schema:Person"),
+    triple("v:New", "rdf:type", iri("@schema:Person")),
     triple("v:New", "name", "v:Name"),
     eq("v:Name", "Eve")
   ])
@@ -382,20 +382,131 @@ query =
 {:ok, _} = WOQL.execute(config, query, author: "admin", message: "add Eve via WOQL")
 ```
 
-### Supported WOQL vocabulary (v0.1)
+### Supported WOQL vocabulary (v0.2)
+
+The WOQL DSL covers ~70 operators across all major families. The encoder uses
+four value-wrapper types (`NodeValue`, `Value`, `DataValue`,
+`ArithmeticValue`) matching the Python/JS clients. Use `iri/1` to mark a
+string as an IRI in triple object position (string objects default to
+`xsd:string` literals).
+
+#### Logical combinators
 
 | Function | WOQL type | Description |
 | --- | --- | --- |
-| `triple/3` | `Triple` | Match or create a triple (subject, predicate, object) |
 | `and_/1` | `And` | Conjunction of sub-queries |
 | `or_/1` | `Or` | Disjunction of sub-queries |
+| `not_/1` | `Not` | Negation |
+| `opt/1` | `Optional` | Optional sub-query |
+| `once/1` | `Once` | Single result |
+| `immediately/1` | `Immediately` | No backtracking |
+
+#### Query modifiers
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `select/2` | `Select` | Project variables |
+| `distinct/2` | `Distinct` | Distinct solutions |
+| `limit/2` | `Limit` | Max results |
+| `start/2` | `Start` | Offset |
+| `order_by/2` | `OrderBy` | Order by variables (tuple or keyword list) |
+| `group_by/4` | `GroupBy` | Group results |
+| `count/2` | `Count` | Count solutions |
+| `collect/3` | `Collect` | Collect into a list |
+| `star/0`, `all/0` | `Triple` | Select everything |
+
+#### Graph patterns
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `triple/3` | `Triple` | Match/create a triple |
+| `quad/4` | `Triple`+graph | Quad pattern |
+| `added_triple/3` | `AddedTriple` | Triple added in commit |
+| `removed_triple/3` | `DeletedTriple` | Triple removed in commit |
+| `add_triple/3` | `AddTriple` | Add triples |
+| `delete_triple/3` | `DeleteTriple` | Delete triples |
+| `update_triple/3` | macro | Update a triple |
+
+#### Comparison
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
 | `eq/2` | `Equals` | Unify left and right |
-| `select/2` | `Select` | Project variables from a sub-query |
-| `read_document/2` | `ReadDocument` | Read a document by ID into a variable |
-| `type_of/2` | `TypeOf` | Unify the type of a node with a variable |
+| `less/2` | `Less` | Less than |
+| `greater/2` | `Greater` | Greater than |
+| `gte/2` | `Gte` | Greater or equal |
+| `lte/2` | `Lte` | Less or equal |
+| `like/3` | `Like` | String similarity |
+
+#### Schema ops
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `type_of/2` | `TypeOf` | Unify type of a node |
+| `isa/2` | `IsA` | Type membership |
+| `sub/2` | `Subsumption` | Subclass check |
+| `cast/3` | `Typecast` | Type cast |
+
+#### Arithmetic
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `eval/2` | `Eval` | Evaluate expression |
+| `plus/1` | `Plus` | Sum values |
+| `minus/1` | `Minus` | Subtract |
+| `times/1` | `Times` | Multiply |
+| `divide/1` | `Divide` | Divide |
+| `sum/2` | `Sum` | Sum a list |
+
+#### String ops
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `concat/2` | `Concatenate` | Concatenate strings |
+| `join/3` | `Join` | Join with glue |
+| `substr/5` | `Substring` | Substring |
+| `trim/2` | `Trim` | Strip whitespace |
+| `upper/2` | `Upper` | Uppercase |
+| `lower/2` | `Lower` | Lowercase |
+| `pad/4` | `Pad` | Pad string to length |
+| `split/3` | `Split` | Split by delimiter |
+| `length/2` | `Length` | List length |
+| `regexp/3` | `Regexp` | Regex match |
+
+#### Path / navigation
+
+`path/3` and `path/4` support both string patterns and structured builders:
+
+```elixir
+# String pattern
+WOQL.path("v:S", "friend*", "v:O")
+
+# Structured
+WOQL.path("v:S", WOQL.Path.path_star(WOQL.Path.path_pred("friend")), "v:O")
+```
+
+#### Documents
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `read_document/2` | `ReadDocument` | Read document by ID |
+| `insert_document/1` | `InsertDocument` | Insert document |
+| `update_document/1` | `UpdateDocument` | Update document |
+| `delete_document/1` | `DeleteDocument` | Delete document |
+
+#### Literal helpers
+
+| Function | Description |
+| --- | --- |
+| `var/1` | Wrap as `v:Name` |
+| `iri/1` | Wrap as IRI (NodeValue) |
+| `string/1` | `xsd:string` literal |
+| `boolean/1` | `xsd:boolean` literal |
+| `datetime/1` | `xsd:dateTime` literal |
+| `true_/0` | `True` constant |
 
 Variables use the `v:Name` convention. The DSL is purely functional (no macros)
-and composes by nesting. Future releases will add more vocabulary.
+and composes by nesting.
 
 ## Cleanup
 

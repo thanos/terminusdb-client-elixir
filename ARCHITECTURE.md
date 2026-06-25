@@ -142,7 +142,10 @@ the graph engine.
   Branch management, and the concatenated-JSON streaming decoder.
 - **v0.3 (done):** Commit history, Diff, Merge (rebase), WOQL functional DSL
   v0.1, TerminusDB 12 compatibility, and integration tests.
-- **v0.3.1+:** GraphQL, expanded WOQL vocabulary, benchmarks, tutorials.
+- **v0.3.1 (done):** WOQL DSL v0.2 — ~70 operators (Tier 1+2), 4-wrapper value
+  model, dual path DSL (string + structured), ADR-0008.
+- **v0.3.2+:** GraphQL, temporal/Allen WOQL family, RDF list library, CSV/IO,
+  benchmarks, tutorials.
 - **v0.4:** Ecto integration (`TerminusDB.Schema`) - Option B.
 - **v0.5:** ExDatalog integration - Option C.
 - **Option D is rejected** for v0.x; a local engine is out of scope for a client.
@@ -169,8 +172,8 @@ TerminusDB
 ├── Commit                history / log                       ✓ v0.3
 ├── Diff                  diff / compare                      ✓ v0.3
 ├── Merge                 rebase / merge                       ✓ v0.3
-├── WOQL                  functional DSL → JSON-LD            ✓ v0.3
-├── GraphQL               GraphQL execution                   (v0.3.1+)
+├── WOQL                  functional DSL → JSON-LD            ✓ v0.3.1 (v0.2 DSL)
+├── GraphQL               GraphQL execution                   (v0.3.2+)
 ├── Datalog               ExDatalog integration               (v0.5)
 └── Telemetry             event definitions + helpers
 ```

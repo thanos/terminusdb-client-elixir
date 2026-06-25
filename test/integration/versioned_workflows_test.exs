@@ -171,7 +171,7 @@ defmodule TerminusDB.Integration.VersionedWorkflowsTest do
       query =
         WOQL.select(
           ["v:W"],
-          WOQL.triple("v:W", "rdf:type", "@schema:Widget")
+          WOQL.triple("v:W", "rdf:type", WOQL.iri("@schema:Widget"))
         )
 
       {:ok, result} = WOQL.execute(cfg, query)
@@ -203,6 +203,40 @@ defmodule TerminusDB.Integration.VersionedWorkflowsTest do
 
       assert result["api:status"] == "api:success"
       assert is_list(result["bindings"])
+    end
+
+    test "execute a read_document query", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Gadget", "name" => "xsd:string"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      {:ok, doc} =
+        Document.insert(
+          cfg,
+          %{"@type" => "Gadget", "name" => "g1"},
+          author: "admin",
+          message: "add gadget"
+        )
+
+      doc_id =
+        case doc do
+          [%{"@id" => id} | _] -> id
+          [id | _] when is_binary(id) -> id
+          %{"@id" => id} -> id
+          _ -> "Gadget/" <> Map.get(doc, "name", "g1")
+        end
+
+      query = WOQL.read_document(doc_id, "v:Doc")
+
+      {:ok, result} = WOQL.execute(cfg, query)
+
+      assert result["api:status"] == "api:success"
+      assert is_list(result["bindings"])
+      assert result["bindings"] != []
     end
   end
 end
