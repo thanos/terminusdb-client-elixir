@@ -1524,6 +1524,23 @@ defmodule TerminusDB.WOQLTest do
       jsonld = WOQL.to_jsonld(WOQL.insert_document("v:Doc"))
       assert jsonld["@type"] == "InsertDocument"
       assert jsonld["document"] == %{"@type" => "Value", "variable" => "Doc"}
+      refute Map.has_key?(jsonld, "identifier")
+    end
+
+    test "insert_document/2 with map encodes document as DictionaryTemplate" do
+      jsonld = WOQL.to_jsonld(WOQL.insert_document(%{"@type" => "Person", "name" => "Bob"}))
+      assert jsonld["@type"] == "InsertDocument"
+      assert jsonld["document"]["@type"] == "Value"
+      assert jsonld["document"]["dictionary"]["@type"] == "DictionaryTemplate"
+      fields = jsonld["document"]["dictionary"]["data"]
+      assert Enum.any?(fields, &(&1["field"] == "@type"))
+      assert Enum.any?(fields, &(&1["field"] == "name"))
+    end
+
+    test "insert_document/2 with identifier includes identifier field" do
+      jsonld = WOQL.to_jsonld(WOQL.insert_document(%{"@type" => "Person"}, "v:Id"))
+      assert jsonld["@type"] == "InsertDocument"
+      assert jsonld["identifier"] == %{"@type" => "NodeValue", "variable" => "Id"}
     end
 
     test "update_document/1 encodes as UpdateDocument" do

@@ -145,8 +145,8 @@ defmodule TerminusDB.WOQL do
   | Function | WOQL JSON-LD type |
   | --- | --- |
   | `read_document/2` | `ReadDocument` |
-  | `insert_document/1` | `InsertDocument` |
-  | `update_document/1` | `UpdateDocument` |
+  | `insert_document/2` | `InsertDocument` |
+  | `update_document/2` | `UpdateDocument` |
   | `delete_document/1` | `DeleteDocument` |
 
   ### Graph context
@@ -1547,20 +1547,31 @@ defmodule TerminusDB.WOQL do
   @doc """
   Builds an `InsertDocument` — inserts a document.
 
+  `identifier` is a variable (e.g. `"v:Id"`) that will be bound to the
+  inserted document's IRI. TerminusDB 12 requires it for well-formed
+  `InsertDocument` JSON-LD.
+
   ## Examples
 
       iex> q = TerminusDB.WOQL.insert_document("v:Doc")
       iex> q.op
       :insert_document
 
+      iex> q = TerminusDB.WOQL.insert_document(%{"@type" => "Person"}, "v:Id")
+      iex> q.op
+      :insert_document
+
   """
-  @spec insert_document(value()) :: t()
-  def insert_document(doc) do
-    %__MODULE__{op: :insert_document, args: [doc]}
+  @spec insert_document(value(), woql_node() | nil) :: t()
+  def insert_document(doc, identifier \\ nil) do
+    %__MODULE__{op: :insert_document, args: [doc, identifier]}
   end
 
   @doc """
   Builds an `UpdateDocument` — insert-or-replace a document.
+
+  `identifier` is a variable (e.g. `"v:Id"`) that will be bound to the
+  updated document's IRI.
 
   ## Examples
 
@@ -1568,10 +1579,14 @@ defmodule TerminusDB.WOQL do
       iex> q.op
       :update_document
 
+      iex> q = TerminusDB.WOQL.update_document(%{"@type" => "Person"}, "v:Id")
+      iex> q.op
+      :update_document
+
   """
-  @spec update_document(value()) :: t()
-  def update_document(doc) do
-    %__MODULE__{op: :update_document, args: [doc]}
+  @spec update_document(value(), woql_node() | nil) :: t()
+  def update_document(doc, identifier \\ nil) do
+    %__MODULE__{op: :update_document, args: [doc, identifier]}
   end
 
   @doc """

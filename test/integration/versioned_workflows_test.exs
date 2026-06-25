@@ -222,7 +222,13 @@ defmodule TerminusDB.Integration.VersionedWorkflowsTest do
           message: "add gadget"
         )
 
-      doc_id = doc["@id"] || doc["iri"] || "Gadget/" <> Map.get(doc, "name", "g1")
+      doc_id =
+        case doc do
+          [%{"@id" => id} | _] -> id
+          [id | _] when is_binary(id) -> id
+          %{"@id" => id} -> id
+          _ -> "Gadget/" <> Map.get(doc, "name", "g1")
+        end
 
       query = WOQL.read_document(doc_id, "v:Doc")
 

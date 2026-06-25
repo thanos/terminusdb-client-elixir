@@ -373,12 +373,14 @@ defmodule TerminusDB.WOQL.Decoder do
     TerminusDB.WOQL.idgen_random(decode_data(base), decode_node(uri))
   end
 
-  def decode(%{"@type" => "InsertDocument", "document" => doc}) do
-    TerminusDB.WOQL.insert_document(decode_value(doc))
+  def decode(%{"@type" => "InsertDocument", "document" => doc} = json) do
+    id = if json["identifier"], do: decode_node(json["identifier"]), else: nil
+    TerminusDB.WOQL.insert_document(decode_document(doc), id)
   end
 
-  def decode(%{"@type" => "UpdateDocument", "document" => doc}) do
-    TerminusDB.WOQL.update_document(decode_value(doc))
+  def decode(%{"@type" => "UpdateDocument", "document" => doc} = json) do
+    id = if json["identifier"], do: decode_node(json["identifier"]), else: nil
+    TerminusDB.WOQL.update_document(decode_document(doc), id)
   end
 
   def decode(%{"@type" => "DeleteDocument", "identifier" => iri}) do
@@ -455,7 +457,27 @@ defmodule TerminusDB.WOQL.Decoder do
     node
   end
 
+  def decode_value(%{"@type" => "Value", "dictionary" => %{"data" => pairs}}) do
+    decode_document_dictionary(pairs)
+  end
+
   def decode_value(value), do: value
+
+  def decode_document(%{"@type" => "Value", "variable" => name}) do
+    "v:#{name}"
+  end
+
+  def decode_document(%{"@type" => "Value", "dictionary" => %{"data" => pairs}}) do
+    decode_document_dictionary(pairs)
+  end
+
+  def decode_document(other), do: decode_value(other)
+
+  defp decode_document_dictionary(pairs) do
+    Enum.reduce(pairs, %{}, fn %{"field" => field, "value" => val}, acc ->
+      Map.put(acc, field, decode_value(val))
+    end)
+  end
 
   # --------------------------------------------------------------------------
   # DataValue decoder

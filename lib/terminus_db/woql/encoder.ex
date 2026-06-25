@@ -485,12 +485,24 @@ defmodule TerminusDB.WOQL.Encoder do
     %{"@type" => "RandomKey", "base" => encode_data(prefix), "uri" => encode_node(uri)}
   end
 
-  def encode(%TerminusDB.WOQL{op: :insert_document, args: [doc]}) do
-    %{"@type" => "InsertDocument", "document" => encode_value(doc)}
+  def encode(%TerminusDB.WOQL{op: :insert_document, args: [doc, identifier]}) do
+    base = %{"@type" => "InsertDocument", "document" => encode_document(doc)}
+
+    if identifier do
+      Map.put(base, "identifier", encode_node(identifier))
+    else
+      base
+    end
   end
 
-  def encode(%TerminusDB.WOQL{op: :update_document, args: [doc]}) do
-    %{"@type" => "UpdateDocument", "document" => encode_value(doc)}
+  def encode(%TerminusDB.WOQL{op: :update_document, args: [doc, identifier]}) do
+    base = %{"@type" => "UpdateDocument", "document" => encode_document(doc)}
+
+    if identifier do
+      Map.put(base, "identifier", encode_node(identifier))
+    else
+      base
+    end
   end
 
   def encode(%TerminusDB.WOQL{op: :delete_document, args: [iri]}) do
@@ -568,6 +580,36 @@ defmodule TerminusDB.WOQL.Encoder do
   end
 
   def encode_value(value) when is_map(value), do: value
+
+  # --------------------------------------------------------------------------
+  # Document — encode raw document maps as DictionaryTemplate (InsertDocument
+  # / UpdateDocument). Variables pass through as Value.
+  # --------------------------------------------------------------------------
+
+  def encode_document(var) when is_binary(var) and binary_part(var, 0, 2) == "v:" do
+    %{"@type" => "Value", "variable" => String.slice(var, 2..-1//1)}
+  end
+
+  def encode_document(doc) when is_map(doc) do
+    pairs =
+      Enum.map(doc, fn {key, value} ->
+        %{
+          "@type" => "FieldValuePair",
+          "field" => key,
+          "value" => encode_value(value)
+        }
+      end)
+
+    %{
+      "@type" => "Value",
+      "dictionary" => %{
+        "@type" => "DictionaryTemplate",
+        "data" => pairs
+      }
+    }
+  end
+
+  def encode_document(value), do: encode_value(value)
 
   # --------------------------------------------------------------------------
   # DataValue — literal data (string-op operands, ID-gen keys)

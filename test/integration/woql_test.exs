@@ -207,11 +207,14 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       query =
         WOQL.and_([
-          WOQL.insert_document(%{
-            "@type" => "Person",
-            "name" => "Bob",
-            "age" => 35
-          })
+          WOQL.insert_document(
+            %{
+              "@type" => "Person",
+              "name" => "Bob",
+              "age" => 35
+            },
+            "v:Id"
+          )
         ])
 
       {:ok, result} =
@@ -222,7 +225,7 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       assert result["api:status"] == "api:success"
 
-      {:ok, doc} = Document.get(cfg, "Person/Bob")
+      {:ok, doc} = Document.get(cfg, id: "Person/Bob")
       assert doc["name"] == "Bob"
     end
 
@@ -242,7 +245,7 @@ defmodule TerminusDB.Integration.WOQLTest do
         )
 
       assert result["api:status"] == "api:success"
-      assert {:error, _} = Document.get(cfg, "Person/Alice")
+      assert {:error, _} = Document.get(cfg, id: "Person/Alice")
     end
   end
 
@@ -252,8 +255,9 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       add_query =
         WOQL.and_([
+          WOQL.add_triple("Person/Test", "rdf:type", WOQL.iri("@schema:Person")),
           WOQL.add_triple("Person/Test", "name", "Test"),
-          WOQL.add_triple("Person/Test", "rdf:type", WOQL.iri("@schema:Person"))
+          WOQL.add_triple("Person/Test", "age", WOQL.literal(42, "integer"))
         ])
 
       {:ok, add_result} =
@@ -319,14 +323,14 @@ defmodule TerminusDB.Integration.WOQLTest do
           ["v:Target"],
           WOQL.and_([
             WOQL.triple("v:S", "name", WOQL.string("Alice")),
-            WOQL.path("v:S", "target+", "v:Target")
+            WOQL.path("v:S", "(<source,target)+", "v:Target")
           ])
         )
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
       targets = binding_values(result["bindings"], "Target")
-      assert "Bob" in targets or "Person/Bob" in targets
+      assert "Person/Bob" in targets or "terminusdb:///data/Person/Bob" in targets
     end
   end
 end

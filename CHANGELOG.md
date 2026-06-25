@@ -35,7 +35,8 @@ important-advanced vocabulary (Tier 1+2).
   `path_pred/1`, `path_any/0`).
 - **ID generation:** `unique/3`, `idgen/3` (alias `idgenerator/3`), `idgen_random/2`
   (alias `random_idgen/2`).
-- **Documents:** `insert_document/1`, `update_document/1`, `delete_document/1`.
+- **Documents:** `insert_document/2`, `update_document/2` (optional identifier),
+  `delete_document/1`.
 - **Graph context:** `using/2`, `from/2`, `into/2`, `comment/2`.
 - **Graph meta:** `size/2`, `triple_count/2`.
 - **Literal/value helpers:** `var/1`, `iri/1`, `string/1`, `boolean/1`, `datetime/1`,
@@ -72,6 +73,9 @@ important-advanced vocabulary (Tier 1+2).
 - `WOQL.execute/3`: now returns `{:error, %Error{reason: :config}}` when no database
   is scoped in config, instead of raising. Added `:config` to `TerminusDB.Error`
   reason types.
+- `insert_document/2` and `update_document/2`: document maps are now encoded as
+  `DictionaryTemplate` with `FieldValuePair` entries (matching the JS `doc()`
+  wrapper), fixing "Not well formed WOQL JSON-LD" errors on TerminusDB 12.
 
 ### Deferred to v0.3.2+
 
