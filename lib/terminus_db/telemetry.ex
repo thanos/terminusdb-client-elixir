@@ -38,7 +38,16 @@ defmodule TerminusDB.Telemetry do
 
   """
 
-  @type area :: :database | :document | :query | :branch | :merge | :diff | :connection
+  @type area ::
+          :database
+          | :document
+          | :query
+          | :branch
+          | :merge
+          | :diff
+          | :commit
+          | :woql
+          | :connection
 
   @doc """
   Returns the event name for a given `area` and `stage` (`:start` or `:stop`).

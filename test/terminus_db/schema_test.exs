@@ -34,7 +34,7 @@ defmodule TerminusDB.SchemaTest do
 
       assert {:ok, ^frame} = Schema.frame(db_config(adapter), "Person")
       req = last_request()
-      assert req.url.path == "/api/schema/admin/mydb/Person"
+      assert req.url.path == "/api/schema/admin/mydb"
     end
 
     test "passes compress_ids and expand_abstract params" do
@@ -57,7 +57,7 @@ defmodule TerminusDB.SchemaTest do
 
       Schema.frame(db_config(adapter), "Person", organization: "acme")
       req = last_request()
-      assert req.url.path == "/api/schema/acme/mydb/Person"
+      assert req.url.path == "/api/schema/acme/mydb"
     end
 
     test "raises when no database is scoped" do

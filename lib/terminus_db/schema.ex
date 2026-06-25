@@ -82,14 +82,8 @@ defmodule TerminusDB.Schema do
 
     params =
       Params.bool_param(:compress_ids, opts[:compress_ids]) ++
-        Params.bool_param(:expand_abstract, opts[:expand_abstract])
-
-    path =
-      if class_name do
-        "#{path}/#{class_name}"
-      else
-        path
-      end
+        Params.bool_param(:expand_abstract, opts[:expand_abstract]) ++
+        Params.flag_param(:type, class_name)
 
     Client.request(config, :get, path, params: params, area: :document)
   end

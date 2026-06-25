@@ -159,7 +159,8 @@ defmodule TerminusDB.Branch do
   @doc """
   Returns `true` if the branch `branch_name` exists, `false` otherwise.
 
-  Uses `HEAD` on the branch resource. A 404 means the branch does not exist;
+  Checks the database's branch list via `GET /api/db/:org/:db?branches=true`.
+  A 404 on the database means it does not exist (so the branch cannot either);
   any other non-success response raises `TerminusDB.Error`.
 
   ## Options
@@ -171,14 +172,18 @@ defmodule TerminusDB.Branch do
 
       iex> config = TerminusDB.Config.new(
       ...>   endpoint: "http://localhost:6363",
-      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: "")} end
+      ...>   adapter: fn req ->
+      ...>     {req, Req.Response.new(status: 200, body: %{"branches" => ["main", "feature"], "path" => "admin/mydb"})}
+      ...>   end
       ...> ) |> TerminusDB.Config.with_database("mydb")
       iex> TerminusDB.Branch.exists?(config, "main")
       true
 
       iex> config = TerminusDB.Config.new(
       ...>   endpoint: "http://localhost:6363",
-      ...>   adapter: fn req -> {req, Req.Response.new(status: 404, body: "")} end
+      ...>   adapter: fn req ->
+      ...>     {req, Req.Response.new(status: 200, body: %{"branches" => ["main"], "path" => "admin/mydb"})}
+      ...>   end
       ...> ) |> TerminusDB.Config.with_database("mydb")
       iex> TerminusDB.Branch.exists?(config, "missing")
       false
@@ -186,12 +191,24 @@ defmodule TerminusDB.Branch do
   """
   @spec exists?(Config.t(), String.t(), [branch_opt()]) :: boolean()
   def exists?(config, branch_name, opts \\ []) do
-    path = branch_path(config, branch_name, opts)
+    org = opts[:organization] || config.organization
 
-    case Client.request_response(config, :head, path, area: :branch) do
-      {:ok, _resp} -> true
-      {:error, %Error{status: 404}} -> false
-      {:error, error} -> raise error
+    db =
+      config.database ||
+        raise Error, reason: :http, message: "no database scoped in config"
+
+    case Client.request(config, :get, "db/#{org}/#{db}", params: [branches: true], area: :branch) do
+      {:ok, %{"branches" => branches}} ->
+        branch_name in branches
+
+      {:ok, _} ->
+        false
+
+      {:error, %Error{status: 404}} ->
+        false
+
+      {:error, error} ->
+        raise error
     end
   end
 end

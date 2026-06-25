@@ -95,23 +95,38 @@ defmodule TerminusDB.BranchTest do
   end
 
   describe "exists?/3" do
-    test "returns true on 200 and issues a HEAD" do
+    test "returns true when the branch is in the database's branch list" do
       test = self()
 
       adapter = fn req ->
         send(test, {:request, req})
-        {req, Req.Response.new(status: 200, body: "")}
+
+        {req,
+         Req.Response.new(
+           status: 200,
+           body: %{"branches" => ["main", "feature"], "path" => "admin/mydb"}
+         )}
       end
 
       assert Branch.exists?(db_config(adapter), "feature") == true
       req = last_request()
-      assert req.method == :head
-      assert req.url.path == "/api/branch/admin/mydb/local/branch/feature"
+      assert req.method == :get
+      assert req.url.path == "/api/db/admin/mydb"
+      assert req.url.query =~ "branches=true"
     end
 
-    test "returns false on 404" do
-      adapter = fn req -> {req, Req.Response.new(status: 404, body: "")} end
+    test "returns false when the branch is not in the list" do
+      adapter = fn req ->
+        {req,
+         Req.Response.new(status: 200, body: %{"branches" => ["main"], "path" => "admin/mydb"})}
+      end
+
       assert Branch.exists?(db_config(adapter), "missing") == false
+    end
+
+    test "returns false on 404 (database not found)" do
+      adapter = fn req -> {req, Req.Response.new(status: 404, body: "")} end
+      assert Branch.exists?(db_config(adapter), "feature") == false
     end
 
     test "raises on unexpected errors" do

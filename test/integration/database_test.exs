@@ -53,8 +53,8 @@ defmodule TerminusDB.Integration.DatabaseTest do
 
       # Info
       {:ok, details} = Database.info(cfg, db)
-      assert is_list(details)
-      assert Enum.any?(details, &(&1["name"] == db))
+      assert is_map(details)
+      assert details["path"] =~ db
 
       # Delete
       {:ok, delete_resp} = Database.delete(cfg, db)
@@ -73,8 +73,8 @@ defmodule TerminusDB.Integration.DatabaseTest do
       Database.create!(cfg, db, label: "L", schema: true)
 
       {:ok, dbs} = Database.list(cfg)
-      names = Enum.map(dbs, & &1["name"])
-      assert db in names
+      paths = Enum.map(dbs, & &1["path"])
+      assert "admin/#{db}" in paths
     end
 
     test "create returns an :api error when the database already exists" do
