@@ -6,13 +6,15 @@ defmodule TerminusDB do
   The client provides an immutable `TerminusDB.Config` for connection context, a
   Req-based `TerminusDB.Client` HTTP layer, a typed `TerminusDB.Error`, the
   `TerminusDB.Database` management API, `TerminusDB.Document` CRUD with streaming,
-  `TerminusDB.Schema` frame retrieval, `TerminusDB.Branch` management, and
-  `TerminusDB.Telemetry` events on every operation. Connection context is
-  **immutable data**, making it safe for concurrent use.
+  `TerminusDB.Schema` frame retrieval, `TerminusDB.Branch` management,
+  `TerminusDB.Commit` history, `TerminusDB.Diff`, `TerminusDB.Merge` (rebase),
+  a `TerminusDB.WOQL` functional query DSL, and `TerminusDB.Telemetry` events on
+  every operation. Connection context is **immutable data**, making it safe for
+  concurrent use.
 
-  Commit, diff, merge, WOQL DSL, GraphQL, and optional Ecto/ExDatalog
-  integrations are planned for later milestones. See `ARCHITECTURE.md` and the
-  ADRs (under `docs/adr/`) for the full design and roadmap.
+  Ecto and ExDatalog integrations are planned for later milestones. See
+  `ARCHITECTURE.md` and the ADRs (under `docs/adr/`) for the full design and
+  roadmap.
 
   ## Quick start
 

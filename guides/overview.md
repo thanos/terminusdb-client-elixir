@@ -1,6 +1,6 @@
 # Overview Guide
 
-A walkthrough of every feature in `terminusdb_ex` v0.2. Each section demonstrates
+A walkthrough of every feature in `terminusdb_ex` v0.3. Each section demonstrates
 a module with runnable examples (against a live TerminusDB at
 `http://localhost:6363`).
 
@@ -16,7 +16,7 @@ until curl -sf http://localhost:6363/api/ok >/dev/null 2>&1; do sleep 1; done
 Then in an Elixir shell (`iex -S mix`):
 
 ```elixir
-alias TerminusDB.{Config, Database, Document, Schema, Branch, Client, Error}
+alias TerminusDB.{Config, Database, Document, Schema, Branch, Commit, Diff, Merge, WOQL, Client, Error}
 ```
 
 ## 1. Configuration (immutable context)
@@ -235,6 +235,174 @@ directly.
 resp.status  # => 200
 resp.headers["content-type"]  # => ["application/json"]
 ```
+
+## 9. Commit history
+
+Every write to TerminusDB creates an immutable commit. Use `TerminusDB.Commit`
+to traverse the commit chain on a branch.
+
+```elixir
+# List recent commits on the current branch
+{:ok, log} = Commit.log(config)
+# => [
+#   %{"@id" => "commit/abc...", "author" => "admin", "message" => "add Alice", ...},
+#   %{"@id" => "commit/def...", "author" => "admin", "message" => "add schema", ...}
+# ]
+
+# Full history (same endpoint, all commits)
+{:ok, history} = Commit.history(config)
+
+# Paginate: start from a specific commit, limit results
+{:ok, page} = Commit.log(config, start: "commit/abc...", limit: 5)
+
+# Inspect a single commit by descriptor ID
+{:ok, commit} = Commit.get(config, "commit/abc...")
+# => %{"@id" => "commit/abc...", "author" => "admin", "message" => "add Alice", ...}
+
+# History on a different branch
+feature_config = Config.with_branch(config, "feature")
+{:ok, feature_log} = Commit.log(feature_config)
+```
+
+## 10. Diff
+
+Compare two document states or branch/commit refs with `TerminusDB.Diff`.
+
+```elixir
+# Diff two document values
+{:ok, patch} = Diff.compare(config,
+  before: %{"@id" => "Person/Alice", "name" => "Alice", "age" => 30},
+  after: %{"@id" => "Person/Alice", "name" => "Alicia", "age" => 31}
+)
+# => %{"name" => %{"@op" => "ValueSwap", "@before" => "Alice", "@after" => "Alicia"}, ...}
+
+# Diff two branches
+{:ok, branch_diff} = Diff.compare(config,
+  before: "admin/mydb/local/branch/main",
+  after: "admin/mydb/local/branch/feature"
+)
+
+# Preserve certain fields in the diff output
+{:ok, patch} = Diff.compare(config,
+  before: %{"@id" => "Person/Alice", "name" => "Alice"},
+  after: %{"@id" => "Person/Alice", "name" => "Alicia"},
+  keep: %{"@id" => true}
+)
+```
+
+## 11. Merge
+
+TerminusDB uses a rebase model for merging: the source branch's commits are
+replayed on top of the target branch. Use `TerminusDB.Merge` to merge or
+preview a merge.
+
+```elixir
+# Create a feature branch and diverge
+{:ok, _} = Branch.create(config, "feature")
+feature_config = Config.with_branch(config, "feature")
+
+Document.insert!(feature_config,
+  %{"@type" => "Person", "name" => "Dave"},
+  author: "admin", message: "add Dave on feature"
+)
+
+# Preview the merge (dry-run) to check for conflicts
+{:ok, preview} = Merge.preview(config,
+  source_branch: "feature",
+  target_branch: "main"
+)
+# => %{"api:status" => "api:success", "api:conflicts" => []}
+
+# Merge feature into main
+{:ok, result} = Merge.merge(config,
+  source_branch: "feature",
+  target_branch: "main",
+  author: "admin",
+  message: "merge feature into main"
+)
+# => %{"api:status" => "api:success", "api:forwarded_commits" => [...]}
+
+# Dave is now on main
+{:ok, docs} = Document.get(config, type: "Person", as_list: true)
+"Dave" in Enum.map(docs, & &1["name"])  # => true
+
+# Clean up the branch
+{:ok, _} = Branch.delete(config, "feature")
+```
+
+## 12. WOQL DSL
+
+WOQL (Web Object Query Language) is TerminusDB's Datalog-based query language.
+Use `TerminusDB.WOQL` to build composable queries functionally, serialize to
+JSON-LD, and execute.
+
+```elixir
+import TerminusDB.WOQL
+
+# Build a query: find all Persons and their names
+query =
+  select(["v:Name"],
+    and_([
+      triple("v:Person", "rdf:type", "@schema:Person"),
+      triple("v:Person", "name", "v:Name")
+    ])
+  )
+
+# Execute against the database
+{:ok, result} = WOQL.execute(config, query)
+# => %{"bindings" => [%{"Name" => "Alice"}, %{"Name" => "Bob"}, ...]}
+
+# Query with an equality filter
+query =
+  select(["v:Name"],
+    and_([
+      triple("v:Person", "name", "v:Name"),
+      eq("v:Name", "Alice")
+    ])
+  )
+
+{:ok, result} = WOQL.execute(config, query)
+# => %{"bindings" => [%{"Name" => "Alice"}]}
+
+# Read a single document by ID
+query = read_document("Person/Alice", "v:Doc")
+{:ok, result} = WOQL.execute(config, query)
+
+# Check the type of a node
+query = type_of("v:Person", "v:Type")
+{:ok, result} = WOQL.execute(config, query)
+
+# Serialize to JSON-LD (inspect the wire format)
+jsonld = WOQL.to_jsonld(query)
+# => %{"@type" => "TypeOf", "node" => %{"@type" => "NodeValue", ...}, ...}
+
+# Deserialize back
+WOQL.from_jsonld(jsonld)  # => %WOQL.Query{op: :type_of, args: [...]}
+
+# Write query with commit metadata
+query =
+  and_([
+    triple("v:New", "rdf:type", "@schema:Person"),
+    triple("v:New", "name", "Eve")
+  ])
+
+{:ok, _} = WOQL.execute(config, query, author: "admin", message: "add Eve via WOQL")
+```
+
+### Supported WOQL vocabulary (v0.1)
+
+| Function | WOQL type | Description |
+| --- | --- | --- |
+| `triple/3` | `Triple` | Match or create a triple (subject, predicate, object) |
+| `and_/1` | `And` | Conjunction of sub-queries |
+| `or_/1` | `Or` | Disjunction of sub-queries |
+| `eq/2` | `Equals` | Unify left and right |
+| `select/2` | `Select` | Project variables from a sub-query |
+| `read_document/2` | `ReadDocument` | Read a document by ID into a variable |
+| `type_of/2` | `TypeOf` | Unify the type of a node with a variable |
+
+Variables use the `v:Name` convention. The DSL is purely functional (no macros)
+and composes by nesting. Future releases will add more vocabulary.
 
 ## Cleanup
 

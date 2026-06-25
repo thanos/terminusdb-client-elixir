@@ -1,11 +1,13 @@
 defmodule TerminusDB.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.3.0"
   @source_url "https://github.com/thanos/terminusdb-client-elixir"
   @description """
-  An idiomatic Elixir client for TerminusDB, the document graph database with
-  built-in version control.
+  An idiomatic Elixir client for TerminusDB, the version-controlled document graph
+  database. Features DB management, document CRUD with streaming, schema frames,
+  branching, commit history, diff/merge, a WOQL query DSL, a Req-based HTTP client,
+  immutable configs, typed errors, and telemetry.
   """
 
   def project do
