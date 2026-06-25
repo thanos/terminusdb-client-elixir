@@ -2,7 +2,7 @@ defmodule TerminusDB.Merge do
   @moduledoc """
   Branch merge API for TerminusDB.
 
-  Wraps the `/api/pull` endpoint to merge (rebase) a source branch into a target
+  Wraps the `/api/rebase` endpoint to merge (rebase) a source branch into a target
   branch. TerminusDB uses a rebase model: the source branch's commits are
   replayed on top of the target branch, creating a linear history.
 
@@ -14,12 +14,6 @@ defmodule TerminusDB.Merge do
 
       # Merge `feature` into `main`
       {:ok, result} = TerminusDB.Merge.merge(config,
-        source_branch: "feature",
-        target_branch: "main"
-      )
-
-      # Preview the merge (dry-run) to check for conflicts
-      {:ok, preview} = TerminusDB.Merge.preview(config,
         source_branch: "feature",
         target_branch: "main"
       )
@@ -72,12 +66,12 @@ defmodule TerminusDB.Merge do
 
   ## Options
 
-  - `:source_branch` (required) — the branch to merge from.
-  - `:target_branch` — the branch to merge into (default: `config.branch`).
-  - `:organization` — overrides `config.organization`.
-  - `:repo` — overrides `config.repo`.
-  - `:author` — commit author for the merge commit.
-  - `:message` — commit message for the merge commit.
+  - `:source_branch` (required) - the branch to merge from.
+  - `:target_branch` - the branch to merge into (default: `config.branch`).
+  - `:organization` - overrides `config.organization`.
+  - `:repo` - overrides `config.repo`.
+  - `:author` - commit author for the merge commit.
+  - `:message` - commit message for the merge commit.
 
   ## Examples
 
@@ -120,60 +114,4 @@ defmodule TerminusDB.Merge do
       {:error, error} -> raise error
     end
   end
-
-  @doc """
-  Previews a merge (dry-run) without applying changes.
-
-  Uses the same parameters as `merge/2` but requests only a preview. The
-  response describes what would change and whether there are conflicts.
-
-  ## Options
-
-  Same as `merge/2`.
-
-  ## Examples
-
-      iex> config = TerminusDB.Config.new(
-      ...>   endpoint: "http://localhost:6363",
-      ...>   adapter: fn req ->
-      ...>     {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success", "api:conflicts" => []})}
-      ...>   end
-      ...> ) |> TerminusDB.Config.with_database("mydb")
-      iex> {:ok, preview} = TerminusDB.Merge.preview(config,
-      ...>   source_branch: "feature",
-      ...>   target_branch: "main"
-      ...> )
-      iex> preview["api:conflicts"]
-      []
-
-  """
-  @spec preview(Config.t(), [merge_opt()]) :: {:ok, map()} | {:error, Error.t()}
-  def preview(config, opts \\ []) do
-    path = rebase_path(config, opts)
-    body = Map.put(rebase_body(config, opts), "preview", true)
-    Client.request(config, :post, path, json: body, area: :merge)
-  end
-
-  @doc """
-  Previews a merge, or raises `TerminusDB.Error`.
-
-  ## Examples
-
-      iex> config = TerminusDB.Config.new(
-      ...>   endpoint: "http://localhost:6363",
-      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success", "api:conflicts" => []})} end
-      ...> ) |> TerminusDB.Config.with_database("mydb")
-      iex> TerminusDB.Merge.preview!(config, source_branch: "feature", target_branch: "main")
-      %{"api:status" => "api:success", "api:conflicts" => []}
-
-  """
-  @spec preview!(Config.t(), [merge_opt()]) :: map()
-  def preview!(config, opts \\ []) do
-    case preview(config, opts) do
-      {:ok, body} -> body
-      {:error, error} -> raise error
-    end
-  end
-
-  # (maybe_put removed — the rebase body is built directly in rebase_body/2)
 end

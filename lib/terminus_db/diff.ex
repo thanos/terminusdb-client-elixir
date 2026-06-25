@@ -25,14 +25,13 @@ defmodule TerminusDB.Diff do
   """
 
   alias TerminusDB.{Client, Config, Error}
+  alias TerminusDB.Client.Params
 
   @type compare_opt ::
           {:before, map()}
           | {:after, map()}
           | {:keep, map()}
           | {:organization, String.t()}
-          | {:repo, String.t()}
-          | {:branch, String.t()}
 
   defp diff_path(config, opts) do
     org = opts[:organization] || config.organization
@@ -50,10 +49,10 @@ defmodule TerminusDB.Diff do
 
   ## Options
 
-  - `:before` (required) — the "before" document or resource ref.
-  - `:after` (required) — the "after" document or resource ref.
-  - `:keep` — a map of fields to preserve in the diff (e.g. `%{"@id" => true}`).
-  - `:organization` — overrides `config.organization`.
+  - `:before` (required) - the "before" document or resource ref.
+  - `:after` (required) - the "after" document or resource ref.
+  - `:keep` - a map of fields to preserve in the diff (e.g. `%{"@id" => true}`).
+  - `:organization` - overrides `config.organization`.
 
   ## Examples
 
@@ -92,7 +91,8 @@ defmodule TerminusDB.Diff do
     before_value = Keyword.fetch!(opts, :before)
     after_value = Keyword.fetch!(opts, :after)
 
-    body = maybe_put(%{"before" => before_value, "after" => after_value}, "keep", opts[:keep])
+    body =
+      Params.maybe_put(%{"before" => before_value, "after" => after_value}, "keep", opts[:keep])
 
     Client.request(config, :post, path, json: body, area: :diff)
   end
@@ -120,7 +120,4 @@ defmodule TerminusDB.Diff do
       {:error, error} -> raise error
     end
   end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

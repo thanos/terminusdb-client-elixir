@@ -76,7 +76,23 @@ defmodule TerminusDB.WOQLTest do
       jsonld = WOQL.to_jsonld(WOQL.triple("v:Person", "rdf:type", "@schema:Person"))
 
       assert jsonld["predicate"] == %{"@type" => "NodeValue", "node" => "rdf:type"}
-      assert jsonld["object"] == "@schema:Person"
+      assert jsonld["object"] == %{"@type" => "NodeValue", "node" => "@schema:Person"}
+    end
+
+    test "encodes a triple with numeric and boolean objects" do
+      jsonld = WOQL.to_jsonld(WOQL.triple("v:S", "count", 42))
+
+      assert jsonld["object"] == %{
+               "@type" => "DataValue",
+               "data" => %{"@type" => "xsd:integer", "@value" => 42}
+             }
+
+      jsonld2 = WOQL.to_jsonld(WOQL.triple("v:S", "active", true))
+
+      assert jsonld2["object"] == %{
+               "@type" => "DataValue",
+               "data" => %{"@type" => "xsd:boolean", "@value" => true}
+             }
     end
 
     test "encodes an and query" do
@@ -126,7 +142,7 @@ defmodule TerminusDB.WOQLTest do
       jsonld = WOQL.to_jsonld(WOQL.type_of("v:Person", "v:Type"))
 
       assert jsonld["@type"] == "TypeOf"
-      assert jsonld["node"] == %{"@type" => "NodeValue", "variable" => "Person"}
+      assert jsonld["value"] == %{"@type" => "DataValue", "variable" => "Person"}
       assert jsonld["type"] == %{"@type" => "NodeValue", "variable" => "Type"}
     end
 
@@ -179,6 +195,34 @@ defmodule TerminusDB.WOQLTest do
       assert q.args != []
     end
 
+    test "decodes an or query" do
+      jsonld = %{
+        "@type" => "Or",
+        "or" => [
+          %{
+            "@type" => "Equals",
+            "left" => %{"@type" => "DataValue", "variable" => "N"},
+            "right" => %{
+              "@type" => "DataValue",
+              "data" => %{"@type" => "xsd:string", "@value" => "Alice"}
+            }
+          },
+          %{
+            "@type" => "Equals",
+            "left" => %{"@type" => "DataValue", "variable" => "N"},
+            "right" => %{
+              "@type" => "DataValue",
+              "data" => %{"@type" => "xsd:string", "@value" => "Bob"}
+            }
+          }
+        ]
+      }
+
+      q = WOQL.from_jsonld(jsonld)
+      assert q.op == :or
+      assert length(q.args) == 2
+    end
+
     test "decodes an eq query" do
       jsonld = %{
         "@type" => "Equals",
@@ -210,6 +254,30 @@ defmodule TerminusDB.WOQLTest do
       assert q.op == :select
       assert q.args == [["v:Name"], %WOQL{op: :triple, args: ["v:P", "name", "v:Name"]}]
     end
+
+    test "decodes a read_document query" do
+      jsonld = %{
+        "@type" => "ReadDocument",
+        "document" => %{"@type" => "NodeValue", "node" => "Person/Alice"},
+        "identifier" => %{"@type" => "DataValue", "variable" => "Doc"}
+      }
+
+      q = WOQL.from_jsonld(jsonld)
+      assert q.op == :read_document
+      assert q.args == ["Person/Alice", "v:Doc"]
+    end
+
+    test "decodes a type_of query" do
+      jsonld = %{
+        "@type" => "TypeOf",
+        "value" => %{"@type" => "DataValue", "variable" => "Person"},
+        "type" => %{"@type" => "NodeValue", "variable" => "Type"}
+      }
+
+      q = WOQL.from_jsonld(jsonld)
+      assert q.op == :type_of
+      assert q.args == ["v:Person", "v:Type"]
+    end
   end
 
   describe "round-trip: to_jsonld ∘ from_jsonld" do
@@ -235,6 +303,21 @@ defmodule TerminusDB.WOQLTest do
 
     test "round-trips a type_of query" do
       q = WOQL.type_of("v:Person", "v:Type")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips an or query" do
+      q = WOQL.or_([WOQL.eq("v:N", "Alice"), WOQL.eq("v:N", "Bob")])
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips a read_document query" do
+      q = WOQL.read_document("Person/Alice", "v:Doc")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips a triple with constant node object" do
+      q = WOQL.triple("v:Person", "rdf:type", "@schema:Person")
       assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
     end
   end

@@ -1,7 +1,7 @@
 defmodule TerminusDB.Client.Params do
   @moduledoc false
 
-  # Internal helpers for building Req query-parameter keyword lists.
+  # Internal helpers for building Req request parameters and bodies.
   #
   # There are two kinds of boolean-style query parameters in the TerminusDB API:
   #
@@ -15,6 +15,9 @@ defmodule TerminusDB.Client.Params do
   #     sends any non-nil value (including `false`). Examples: `unfold`,
   #     `minimized`, `compress_ids`, `as_list`, `branches`, `verbose`,
   #     `expand_abstract`.
+  #
+  # `maybe_put/3` conditionally adds a key to a map body, skipping `nil` values
+  # so omitted options don't appear in the JSON payload.
 
   @doc """
   Returns a single-element keyword list for a flag parameter, or `[]` when the
@@ -47,4 +50,12 @@ defmodule TerminusDB.Client.Params do
       {name, value} -> flag_param(name, value)
     end)
   end
+
+  @doc """
+  Puts `key` into `map` only when `value` is not `nil`. Use to omit absent
+  options from JSON request bodies.
+  """
+  @spec maybe_put(map(), term(), term()) :: map()
+  def maybe_put(map, _key, nil), do: map
+  def maybe_put(map, key, value), do: Map.put(map, key, value)
 end

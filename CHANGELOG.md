@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`TerminusDB.Diff`**: document and branch-level diff — `compare/2` /
   `compare!/2`. Supports `before`/`after` document values or branch/commit refs,
   plus `:keep` for field preservation.
-- **`TerminusDB.Merge`**: branch merge (rebase) — `merge/2`, `preview/2` (plus
-  `!/` variants). Uses the `/api/rebase` endpoint with `author`/`rebase_from`
-  body. Preview provides dry-run conflict reporting.
+- **`TerminusDB.Merge`**: branch merge (rebase) — `merge/2` (plus
+  `!/` variant). Uses the `/api/rebase` endpoint with `author`/`rebase_from`
+  body.
 - **`TerminusDB.WOQL`**: functional builder DSL (ADR-0002) — `triple/3`,
   `and_/1`, `or_/1`, `eq/2`, `select/2`, `read_document/2`, `type_of/2`.
   Serializes to the correct WOQL JSON-LD wire format (`NodeValue`/`DataValue`

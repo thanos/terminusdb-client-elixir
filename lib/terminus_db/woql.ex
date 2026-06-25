@@ -5,9 +5,9 @@ defmodule TerminusDB.WOQL do
   WOQL is TerminusDB's Datalog-based query language. This module provides a
   small but solid set of composable functions that build a `TerminusDB.WOQL.Query`
   struct, which can be serialized to the JSON-LD wire format via `to_jsonld/1`
-  and executed via `TerminusDB.WOQL.execute/2`.
+  and executed via `TerminusDB.WOQL.execute/3`.
 
-  This is WOQL DSL v0.1 — a focused subset covering the most common patterns.
+  This is WOQL DSL v0.1 - a focused subset covering the most common patterns.
   Future releases will extend the vocabulary.
 
   ## Design
@@ -24,7 +24,7 @@ defmodule TerminusDB.WOQL do
   | `triple/3` | `Triple` |
   | `and_/1` | `And` |
   | `or_/1` | `Or` |
-  | `eq/2` | `Eq` |
+  | `eq/2` | `Equals` |
   | `select/2` | `Select` |
   | `read_document/2` | `ReadDocument` |
   | `type_of/2` | `TypeOf` |
@@ -49,6 +49,7 @@ defmodule TerminusDB.WOQL do
   """
 
   alias TerminusDB.{Client, Config, Error}
+  alias TerminusDB.Client.Params
 
   defstruct [:op, :args]
 
@@ -116,7 +117,7 @@ defmodule TerminusDB.WOQL do
   end
 
   @doc """
-  Builds an `Eq` unification: left equals right.
+  Builds an `Equals` unification: left equals right.
 
   ## Examples
 
@@ -230,12 +231,12 @@ defmodule TerminusDB.WOQL do
 
   ## Options
 
-  - `:author` — commit author (for write queries).
-  - `:message` — commit message (for write queries).
-  - `:all_witnesses` — check for all errors (default `false`).
-  - `:organization` — overrides `config.organization`.
-  - `:repo` — overrides `config.repo`.
-  - `:branch` — overrides `config.branch`.
+  - `:author` - commit author (for write queries).
+  - `:message` - commit message (for write queries).
+  - `:all_witnesses` - check for all errors (default `false`).
+  - `:organization` - overrides `config.organization`.
+  - `:repo` - overrides `config.repo`.
+  - `:branch` - overrides `config.branch`.
 
   ## Examples
 
@@ -267,8 +268,8 @@ defmodule TerminusDB.WOQL do
 
     body =
       %{"query" => to_jsonld(query)}
-      |> maybe_put("commit_info", build_commit_info(opts))
-      |> maybe_put("all_witnesses", opts[:all_witnesses])
+      |> Params.maybe_put("commit_info", build_commit_info(opts))
+      |> Params.maybe_put("all_witnesses", opts[:all_witnesses])
 
     Client.request(config, :post, path, json: body, area: :woql)
   end
@@ -303,8 +304,9 @@ defmodule TerminusDB.WOQL do
   #
   #   Variables: {"@type": "NodeValue", "variable": "Name"} (for nodes)
   #              {"@type": "DataValue", "variable": "Name"} (for data values)
-  #   Constants: {"@type": "NodeValue", "node": "rdf:type"} (for nodes)
-  #              bare values for data (strings, numbers, booleans)
+  #   Constants: {"@type": "NodeValue", "node": "rdf:type"} (for node/IRI strings)
+  #              {"@type": "DataValue", "data": {"@type": "xsd:string", "@value": ...}}
+  #                (for literal strings, numbers, booleans)
   # --------------------------------------------------------------------------
 
   defp encode(%__MODULE__{op: :triple, args: [s, p, o]}) do
@@ -333,7 +335,7 @@ defmodule TerminusDB.WOQL do
   defp encode(%__MODULE__{op: :eq, args: [left, right]}) do
     %{
       "@type" => "Equals",
-      "left" => encode_value(left),
+      "left" => encode_data(left),
       "right" => encode_data(right)
     }
   end
@@ -357,7 +359,7 @@ defmodule TerminusDB.WOQL do
   defp encode(%__MODULE__{op: :type_of, args: [node, var]}) do
     %{
       "@type" => "TypeOf",
-      "node" => encode_node(node),
+      "value" => encode_value(node),
       "type" => encode_node(var)
     }
   end
@@ -372,15 +374,29 @@ defmodule TerminusDB.WOQL do
     %{"@type" => "NodeValue", "node" => value}
   end
 
-  # Encode a data value: variables become DataValue with "variable",
-  # constants are bare values (strings, numbers, booleans) or NodeValue for nodes.
+  # Encode a value (triple object, type_of value): variables become DataValue
+  # with "variable", constant strings become NodeValue with "node" (IRIs),
+  # numbers/booleans become DataValue with xsd-typed data.
   defp encode_value(var) when is_binary(var) and binary_part(var, 0, 2) == "v:" do
     %{"@type" => "DataValue", "variable" => String.slice(var, 2..-1//1)}
   end
 
-  defp encode_value(value) when is_binary(value), do: value
-  defp encode_value(value) when is_number(value), do: value
-  defp encode_value(value) when is_boolean(value), do: value
+  defp encode_value(value) when is_binary(value) do
+    %{"@type" => "NodeValue", "node" => value}
+  end
+
+  defp encode_value(value) when is_integer(value) do
+    %{"@type" => "DataValue", "data" => %{"@type" => "xsd:integer", "@value" => value}}
+  end
+
+  defp encode_value(value) when is_float(value) do
+    %{"@type" => "DataValue", "data" => %{"@type" => "xsd:decimal", "@value" => value}}
+  end
+
+  defp encode_value(value) when is_boolean(value) do
+    %{"@type" => "DataValue", "data" => %{"@type" => "xsd:boolean", "@value" => value}}
+  end
+
   defp encode_value(value) when is_map(value), do: value
 
   # Encode a data value for Equals: literals must be wrapped in DataValue with
@@ -429,7 +445,7 @@ defmodule TerminusDB.WOQL do
   end
 
   defp decode(%{"@type" => "Equals"} = m) do
-    eq(decode_value(m["left"]), decode_data(m["right"]))
+    eq(decode_data(m["left"]), decode_data(m["right"]))
   end
 
   defp decode(%{"@type" => "Select", "variables" => vars, "query" => query}) do
@@ -441,7 +457,7 @@ defmodule TerminusDB.WOQL do
   end
 
   defp decode(%{"@type" => "TypeOf"} = m) do
-    type_of(decode_node(m["node"]), decode_node(m["type"]))
+    type_of(decode_value(m["value"]), decode_node(m["type"]))
   end
 
   defp decode_node(%{"@type" => "NodeValue", "variable" => name}) do
@@ -462,6 +478,14 @@ defmodule TerminusDB.WOQL do
     "v:#{name}"
   end
 
+  defp decode_value(%{"@type" => "NodeValue", "node" => node}) do
+    node
+  end
+
+  defp decode_value(%{"@type" => "DataValue", "data" => %{"@value" => value}}) do
+    value
+  end
+
   defp decode_value(value), do: value
 
   defp decode_data(%{"@type" => "DataValue", "variable" => name}) do
@@ -475,13 +499,6 @@ defmodule TerminusDB.WOQL do
   defp decode_data(value), do: value
 
   defp decode_select_var(name) when is_binary(name), do: "v:#{name}"
-
-  # --------------------------------------------------------------------------
-  # Internal: helpers
-  # --------------------------------------------------------------------------
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp build_commit_info(opts) do
     author = opts[:author]

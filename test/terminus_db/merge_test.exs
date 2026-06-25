@@ -92,39 +92,4 @@ defmodule TerminusDB.MergeTest do
       end
     end
   end
-
-  describe "preview/2" do
-    test "POSTs with preview: true in the body" do
-      test = self()
-      adapter = capture(test, ok(%{"api:status" => "api:success", "api:conflicts" => []}))
-
-      assert {:ok, preview} =
-               Merge.preview(db_config(adapter),
-                 source_branch: "feature",
-                 target_branch: "main"
-               )
-
-      req = last_request()
-      assert {:ok, body} = Jason.decode(req.body)
-      assert body["preview"] == true
-      assert preview["api:conflicts"] == []
-    end
-  end
-
-  describe "preview!/2" do
-    test "returns the preview on success" do
-      adapter = fn req -> {req, ok(%{"api:conflicts" => []})} end
-
-      assert Merge.preview!(db_config(adapter), source_branch: "feature", target_branch: "main") ==
-               %{"api:conflicts" => []}
-    end
-
-    test "raises on failure" do
-      adapter = fn req -> {req, resp(404, %{"@type" => "api:NotFound"})} end
-
-      assert_raise Error, fn ->
-        Merge.preview!(db_config(adapter), source_branch: "missing", target_branch: "main")
-      end
-    end
-  end
 end

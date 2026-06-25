@@ -84,6 +84,11 @@ defmodule TerminusDB.CommitTest do
       adapter = fn req -> {req, ok([%{"commit" => "c1"}])} end
       assert Commit.history!(db_config(adapter)) == [%{"commit" => "c1"}]
     end
+
+    test "raises on failure" do
+      adapter = fn req -> {req, resp(404, %{"@type" => "api:NotFound"})} end
+      assert_raise Error, fn -> Commit.history!(db_config(adapter)) end
+    end
   end
 
   describe "get/3" do

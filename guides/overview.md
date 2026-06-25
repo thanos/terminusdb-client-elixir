@@ -236,7 +236,7 @@ resp.status  # => 200
 resp.headers["content-type"]  # => ["application/json"]
 ```
 
-## 9. Commit history
+## 10. Commit history
 
 Every write to TerminusDB creates an immutable commit. Use `TerminusDB.Commit`
 to traverse the commit chain on a branch.
@@ -264,7 +264,7 @@ feature_config = Config.with_branch(config, "feature")
 {:ok, feature_log} = Commit.log(feature_config)
 ```
 
-## 10. Diff
+## 11. Diff
 
 Compare two document states or branch/commit refs with `TerminusDB.Diff`.
 
@@ -290,11 +290,10 @@ Compare two document states or branch/commit refs with `TerminusDB.Diff`.
 )
 ```
 
-## 11. Merge
+## 12. Merge
 
 TerminusDB uses a rebase model for merging: the source branch's commits are
-replayed on top of the target branch. Use `TerminusDB.Merge` to merge or
-preview a merge.
+replayed on top of the target branch. Use `TerminusDB.Merge` to merge branches.
 
 ```elixir
 # Create a feature branch and diverge
@@ -305,13 +304,6 @@ Document.insert!(feature_config,
   %{"@type" => "Person", "name" => "Dave"},
   author: "admin", message: "add Dave on feature"
 )
-
-# Preview the merge (dry-run) to check for conflicts
-{:ok, preview} = Merge.preview(config,
-  source_branch: "feature",
-  target_branch: "main"
-)
-# => %{"api:status" => "api:success", "api:conflicts" => []}
 
 # Merge feature into main
 {:ok, result} = Merge.merge(config,
@@ -330,7 +322,7 @@ Document.insert!(feature_config,
 {:ok, _} = Branch.delete(config, "feature")
 ```
 
-## 12. WOQL DSL
+## 13. WOQL DSL
 
 WOQL (Web Object Query Language) is TerminusDB's Datalog-based query language.
 Use `TerminusDB.WOQL` to build composable queries functionally, serialize to
@@ -374,7 +366,7 @@ query = type_of("v:Person", "v:Type")
 
 # Serialize to JSON-LD (inspect the wire format)
 jsonld = WOQL.to_jsonld(query)
-# => %{"@type" => "TypeOf", "node" => %{"@type" => "NodeValue", ...}, ...}
+# => %{"@type" => "TypeOf", "value" => %{"@type" => "DataValue", ...}, ...}
 
 # Deserialize back
 WOQL.from_jsonld(jsonld)  # => %WOQL.Query{op: :type_of, args: [...]}
@@ -383,7 +375,8 @@ WOQL.from_jsonld(jsonld)  # => %WOQL.Query{op: :type_of, args: [...]}
 query =
   and_([
     triple("v:New", "rdf:type", "@schema:Person"),
-    triple("v:New", "name", "Eve")
+    triple("v:New", "name", "v:Name"),
+    eq("v:Name", "Eve")
   ])
 
 {:ok, _} = WOQL.execute(config, query, author: "admin", message: "add Eve via WOQL")

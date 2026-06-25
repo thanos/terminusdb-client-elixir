@@ -168,7 +168,7 @@ TerminusDB
 ├── Streaming             concatenated-JSON stream decoder    ✓ v0.2
 ├── Commit                history / log                       ✓ v0.3
 ├── Diff                  diff / compare                      ✓ v0.3
-├── Merge                 rebase / merge / preview            ✓ v0.3
+├── Merge                 rebase / merge                       ✓ v0.3
 ├── WOQL                  functional DSL → JSON-LD            ✓ v0.3
 ├── GraphQL               GraphQL execution                   (v0.3.1+)
 ├── Datalog               ExDatalog integration               (v0.5)

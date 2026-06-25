@@ -146,9 +146,63 @@ defmodule TerminusDB.Integration.VersionedWorkflowsTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
 
-      assert is_map(result)
-      # The result should include bindings (exact shape depends on the server)
-      assert result["bindings"] != nil or result["inserts"] != nil or result["deletes"] != nil
+      assert result["api:status"] == "api:success"
+      assert is_list(result["bindings"])
+      [%{"Name" => name}] = result["bindings"]
+      assert name == "gizmo" or name == %{"@type" => "xsd:string", "@value" => "gizmo"}
+    end
+
+    test "execute a WOQL query with a constant object node", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Widget", "name" => "xsd:string"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      Document.insert!(
+        cfg,
+        %{"@type" => "Widget", "name" => "w1"},
+        author: "admin",
+        message: "add widget"
+      )
+
+      query =
+        WOQL.select(
+          ["v:W"],
+          WOQL.triple("v:W", "rdf:type", "@schema:Widget")
+        )
+
+      {:ok, result} = WOQL.execute(cfg, query)
+
+      assert result["api:status"] == "api:success"
+      assert is_list(result["bindings"])
+      assert result["bindings"] != []
+    end
+
+    test "execute a type_of query", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Doohickey", "name" => "xsd:string"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      Document.insert!(
+        cfg,
+        %{"@type" => "Doohickey", "name" => "d1"},
+        author: "admin",
+        message: "add doohickey"
+      )
+
+      query = WOQL.type_of("v:D", "v:T")
+
+      {:ok, result} = WOQL.execute(cfg, query)
+
+      assert result["api:status"] == "api:success"
+      assert is_list(result["bindings"])
     end
   end
 end

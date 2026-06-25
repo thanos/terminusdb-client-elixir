@@ -53,11 +53,11 @@ defmodule TerminusDB.Commit do
 
   ## Options
 
-  - `:branch` — overrides `config.branch`.
-  - `:repo` — overrides `config.repo`.
-  - `:organization` — overrides `config.organization`.
-  - `:start` — a commit ID to start listing from (for pagination).
-  - `:limit` — max number of commits to return.
+  - `:branch` - overrides `config.branch`.
+  - `:repo` - overrides `config.repo`.
+  - `:organization` - overrides `config.organization`.
+  - `:start` - a commit ID to start listing from (for pagination).
+  - `:limit` - max number of commits to return.
 
   ## Examples
 
@@ -108,11 +108,11 @@ defmodule TerminusDB.Commit do
   end
 
   @doc """
-  Returns the full commit history for the current (or given) branch, including
-  commit metadata (author, message, timestamp, and the commit descriptor).
+  Returns the full commit history for the current (or given) branch.
 
-  This uses the same `log` endpoint as `log/2` but requests additional metadata
-  fields, useful for building history viewers or audit trails.
+  This is an alias for `log/2` - both use the same `/api/log` endpoint with
+  the same parameters. Provided as a semantically distinct name for callers
+  building history viewers or audit trails.
 
   ## Options
 
@@ -135,14 +135,7 @@ defmodule TerminusDB.Commit do
   """
   @spec history(Config.t(), [commit_opt()]) :: {:ok, [map()]} | {:error, Error.t()}
   def history(config, opts \\ []) do
-    path = commit_path(config, opts, "log")
-
-    params =
-      Params.flag_param(:start, opts[:start]) ++
-        Params.flag_param(:limit, opts[:limit]) ++
-        Params.flag_param(:count, opts[:count])
-
-    Client.request(config, :get, path, params: params, area: :commit)
+    log(config, opts)
   end
 
   @doc """
@@ -174,9 +167,9 @@ defmodule TerminusDB.Commit do
 
   ## Options
 
-  - `:branch` — overrides `config.branch`.
-  - `:repo` — overrides `config.repo`.
-  - `:organization` — overrides `config.organization`.
+  - `:branch` - overrides `config.branch`.
+  - `:repo` - overrides `config.repo`.
+  - `:organization` - overrides `config.organization`.
 
   ## Examples
 
