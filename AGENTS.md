@@ -112,7 +112,8 @@ ADR justifying it.
 | **v0.1 (foundation)** | Config, Error, Telemetry, Client (Req), Database API, unit tests, CI, ADRs, ARCHITECTURE, AGENTS | **Done** |
 | **v0.2 (APIs)** | Document, Schema, Branch, Streaming, Document.query/stream, guides, Livebook | **Done** |
 | **v0.3 (versioned workflows)** | Commit, Diff, Merge (rebase), WOQL DSL v0.1, TerminusDB 12 compat, integration tests | **Done** |
-| v0.3.1+ | GraphQL, WOQL DSL v0.2 (more vocabulary), benchmarks, tutorials | Pending |
+| **v0.3.1 (WOQL v0.2)** | ~70 WOQL operators (Tier 1+2), 4-wrapper value model, dual path DSL, ADR-0008 | **Done** |
+| v0.3.2+ | GraphQL, temporal/Allen WOQL, RDF list library, CSV/IO, benchmarks, tutorials | Pending |
 | v0.4 (Ecto) | `use TerminusDB.Schema` macro, schema generation, optional `:ecto` dep; research full `Ecto.Adapter` feasibility | Pending |
 | v0.5 (ExDatalog) | `TerminusDB.Datalog` bridge (`to_woql`, `to_jsonld`, `from_triples`), optional `:datalog` dep | Pending |
 | Release | CHANGELOG, release notes, migration guide, Hex.pm review, final review | Pending |

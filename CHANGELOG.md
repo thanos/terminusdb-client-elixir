@@ -5,6 +5,77 @@ All notable changes to `terminusdb_ex` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — unreleased
+
+### Added — WOQL DSL v0.2 (ADR-0008)
+
+Expanded the WOQL builder DSL from 7 operators to ~70, covering the core and
+important-advanced vocabulary (Tier 1+2).
+
+- **Logical combinators:** `not/1`, `opt/1` (alias `optional/1`), `once/1`,
+  `immediately/1`.
+- **Query modifiers:** `distinct/2`, `limit/2`, `start/2`, `order_by/2` (accepts
+  tuple-list or keyword-list form), `group_by/4`, `count/2`, `collect/3`, `star/0..4`,
+  `all/0..4`.
+- **Graph patterns:** `quad/4`, `added_triple/3`, `removed_triple/3`, `added_quad/4`,
+  `removed_quad/4`, `add_triple/3`, `delete_triple/3`, `add_quad/4`, `delete_quad/4`,
+  `update_triple/3`, `update_quad/4`.
+- **Comparison:** `less/2`, `greater/2`, `gte/2`, `lte/2`, `like/3`.
+- **Schema ops:** `isa/2`, `sub/2` (alias `subsumption/2`), `cast/3` (alias
+  `typecast/3`).
+- **Arithmetic:** `eval/2`, `plus/1`, `minus/1`, `times/1`, `divide/1`, `div/1`,
+  `exp/2`, `floor/1`, `sum/2`.
+- **String ops:** `concat/2`, `join/3`, `substr/5` (alias `substring/5`), `trim/2`,
+  `upper/2`, `lower/2`, `pad/4`, `split/3`, `length/2`, `regexp/3`.
+- **List/Set/Dict:** `dot/3`, `member/2`, `slice/4`, `set_difference/3`,
+  `set_intersection/3`, `set_union/3`, `set_member/2`, `list_to_set/2`.
+- **Path/navigation:** `path/3..4` with a dual-mode DSL — string-compiled parser
+  (`path("v:S", "<friend*{1,3}", "v:O")`) and structured builders (`path_star/1`,
+  `path_plus/1`, `path_times/3`, `path_seq/1`, `path_or/1`, `path_inverse/1`,
+  `path_pred/1`, `path_any/0`).
+- **ID generation:** `unique/3`, `idgen/3` (alias `idgenerator/3`), `idgen_random/2`
+  (alias `random_idgen/2`).
+- **Documents:** `insert_document/2`, `update_document/2`, `delete_document/1`.
+- **Graph context:** `using/2`, `from/2`, `into/2`, `comment/2`.
+- **Graph meta:** `size/2`, `triple_count/2`.
+- **Literal/value helpers:** `var/1`, `iri/1`, `string/1`, `boolean/1`, `datetime/1`,
+  `date/1`, `literal/2`, `true/0`.
+
+### Changed
+
+- **4-wrapper value model:** the JSON-LD encoder now uses `NodeValue`, `Value`,
+  `DataValue`, and `ArithmeticValue` (matching the Python/JS clients), replacing the
+  2-wrapper `NodeValue`/`DataValue` model from v0.3.
+- **`triple/3` object encoding:** constant string objects now encode as `Value` with
+  `xsd:string` data (literals), matching Python. Previously they encoded as `NodeValue`
+  with `node` (IRIs). **Migration:** pass `iri("...")` explicitly when an IRI object
+  is intended.
+- **`read_document/2` field ordering:** the document id is now under `"identifier"`
+  (NodeValue) and the output variable under `"document"` (Value), matching the
+  canonical wire format. Previously these were swapped.
+- **`eq/2` operands:** now wrapped in `Value` (was `DataValue`), matching Python.
+- **`type_of/2`:** `value` uses `Value`, `type` uses `Value` (was `NodeValue`).
+- **`float` literals:** encode as `xsd:decimal` in the query builder (matches Python's
+  wire output).
+- Module split: `woql.ex` now delegates encoding/decoding/path/literal helpers to
+  `TerminusDB.WOQL.Encoder`, `TerminusDB.WOQL.Decoder`, `TerminusDB.WOQL.Path`, and
+  `TerminusDB.WOQL.Literal`.
+- Version bumped to 0.3.1-dev; `source_ref` updated for HexDocs.
+
+### Fixed
+
+- `read_document/2`: field ordering now matches the canonical WOQL JSON-LD wire format
+  (was reversed, causing incorrect encoding).
+
+### Deferred to v0.3.2+
+
+- Temporal / Allen interval algebra family (19 operators).
+- RDF list library (`WOQLLibrary.rdflist_*`, 17 macros).
+- CSV/IO (`get`, `put`, `woql_as`, `file`, `remote`, `post`).
+- `graph/1` context setter.
+- Macro sugar layer (`TerminusDB.WOQL.Macros`).
+- Range query family (`triple_slice*`, `triple_next`, `triple_previous`).
+
 ## [0.3.0] — 2026-06-25
 
 ### Added — versioned query workflows and WOQL DSL
@@ -159,3 +230,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.1.0]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.1.0
 [0.2.0]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.2.0
 [0.3.0]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.3.0
+[0.3.1]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.3.1
