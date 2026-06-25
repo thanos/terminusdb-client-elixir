@@ -109,23 +109,23 @@ jobs:
       - name: Build docs
         run: mix docs
 
-  # integration:
-  #   name: Integration tests (real TerminusDB)
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     MIX_ENV: test
-  #     TERMINUSDB_URL: "http://localhost:6363"
-  #     TERMINUSDB_USER: "admin"
-  #     TERMINUSDB_KEY: "root"
-  #   services:
-  #     terminusdb:
-  #       image: terminusdb/terminusdb-server:latest
-  #       ports:
-  #         - 6363:6363
-  #       env:
-  #         TERMINUSDB_ADMIN_PASS: root
-  #   steps:
-  #     - uses: actions/checkout@v4
+  integration:
+    name: Integration tests (real TerminusDB)
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      TERMINUSDB_URL: "http://localhost:6363"
+      TERMINUSDB_USER: "admin"
+      TERMINUSDB_KEY: "root"
+    services:
+      terminusdb:
+        image: terminusdb/terminusdb-server:v12-noroot
+        ports:
+          - 6363:6363
+        env:
+          TERMINUSDB_ADMIN_PASS: root
+    steps:
+      - uses: actions/checkout@v4
 
   #     - name: Set up Elixir
   #       uses: erlef/setup-beam@v1
