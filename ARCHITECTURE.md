@@ -140,9 +140,11 @@ the graph engine.
   telemetry, and the HTTP/wire primitives.
 - **v0.2 (done):** Document CRUD + query + streaming, Schema frame retrieval,
   Branch management, and the concatenated-JSON streaming decoder.
-- **v0.2.1+:** Commit, Diff, Merge, GraphQL, and the WOQL functional DSL.
-- **v0.3:** Ecto integration (`TerminusDB.Schema`) - Option B.
-- **v0.4:** ExDatalog integration - Option C.
+- **v0.3 (done):** Commit history, Diff, Merge (rebase), WOQL functional DSL
+  v0.1, TerminusDB 12 compatibility, and integration tests.
+- **v0.3.1+:** GraphQL, expanded WOQL vocabulary, benchmarks, tutorials.
+- **v0.4:** Ecto integration (`TerminusDB.Schema`) - Option B.
+- **v0.5:** ExDatalog integration - Option C.
 - **Option D is rejected** for v0.x; a local engine is out of scope for a client.
 
 This sequencing gives a usable, tested client immediately and de-risks the harder
@@ -164,12 +166,12 @@ TerminusDB
 ├── Schema                schema frame API                    ✓ v0.2
 ├── Branch                branch API                          ✓ v0.2
 ├── Streaming             concatenated-JSON stream decoder    ✓ v0.2
-├── Commit                history / log                       (v0.2.1+)
-├── Diff                  diff + patch                        (v0.2.1+)
-├── Merge                 push / pull / rebase                (v0.2.1+)
-├── WOQL                  functional DSL → JSON-LD            (v0.2.1+)
-├── GraphQL               GraphQL execution                   (v0.2.1+)
-├── Datalog               ExDatalog integration               (v0.4)
+├── Commit                history / log                       ✓ v0.3
+├── Diff                  diff / compare                      ✓ v0.3
+├── Merge                 rebase / merge                       ✓ v0.3
+├── WOQL                  functional DSL → JSON-LD            ✓ v0.3
+├── GraphQL               GraphQL execution                   (v0.3.1+)
+├── Datalog               ExDatalog integration               (v0.5)
 └── Telemetry             event definitions + helpers
 ```
 

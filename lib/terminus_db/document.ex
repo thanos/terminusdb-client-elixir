@@ -294,11 +294,13 @@ defmodule TerminusDB.Document do
   def query(config, template, opts \\ []) do
     path = document_path(config, opts)
 
+    # as_list: true is always sent for queries so the server returns a JSON
+    # array instead of concatenated JSON, which Req can decode as a list.
     params =
       graph_type_param(opts) ++
         Params.flag_param(:skip, opts[:skip]) ++
         Params.flag_param(:count, opts[:count]) ++
-        Params.bool_param(:as_list, opts[:as_list])
+        [{:as_list, true}]
 
     Client.request(config, :get, path, json: template, params: params, area: :document)
   end

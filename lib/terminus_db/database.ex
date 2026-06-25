@@ -72,8 +72,8 @@ defmodule TerminusDB.Database do
         "comment" => opts[:comment] || "",
         "schema" => Keyword.get(opts, :schema, true)
       }
-      |> maybe_put("public", opts[:public])
-      |> maybe_put("prefixes", opts[:prefixes])
+      |> Params.maybe_put("public", opts[:public])
+      |> Params.maybe_put("prefixes", opts[:prefixes])
 
     Client.request(config, :post, "db/#{org}/#{db_name}", json: body, area: :database)
   end
@@ -311,8 +311,8 @@ defmodule TerminusDB.Database do
         "comment" => opts[:comment] || "",
         "schema" => Keyword.get(opts, :schema, true)
       }
-      |> maybe_put("public", opts[:public])
-      |> maybe_put("prefixes", opts[:prefixes])
+      |> Params.maybe_put("public", opts[:public])
+      |> Params.maybe_put("prefixes", opts[:prefixes])
 
     Client.request(config, :put, "db/#{org}/#{db_name}", json: body, area: :database)
   end
@@ -339,7 +339,4 @@ defmodule TerminusDB.Database do
   end
 
   # Helpers -------------------------------------------------------------------
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

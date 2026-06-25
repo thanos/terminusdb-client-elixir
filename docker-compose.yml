@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   terminusdb:
-    image: terminusdb/terminusdb-server:latest
+    image: terminusdb/terminusdb-server:v12-noroot
     ports:
       - "6363:6363"
     environment:

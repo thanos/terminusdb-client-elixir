@@ -100,7 +100,7 @@ If you cannot find a command, ask the user and then add it here.
 
 ## Dependency policy
 
-Minimize deps. Runtime (v0.2): `req`, `jason`, `nimble_options`, `telemetry`.
+Minimize deps. Runtime (v0.3): `req`, `jason`, `nimble_options`, `telemetry`.
 Ecto and ExDatalog will be **optional** dependencies, gated by compile flags,
 when their integrations land (v0.3/v0.4). Do not add a runtime dep without an
 ADR justifying it.
@@ -111,9 +111,10 @@ ADR justifying it.
 | --- | --- | --- |
 | **v0.1 (foundation)** | Config, Error, Telemetry, Client (Req), Database API, unit tests, CI, ADRs, ARCHITECTURE, AGENTS | **Done** |
 | **v0.2 (APIs)** | Document, Schema, Branch, Streaming, Document.query/stream, guides, Livebook | **Done** |
-| v0.2.1+ | Commit, Diff, Merge, GraphQL, WOQL functional DSL, benchmarks | Pending |
-| v0.3 (Ecto) | `use TerminusDB.Schema` macro, schema generation, optional `:ecto` dep; research full `Ecto.Adapter` feasibility | Pending |
-| v0.4 (ExDatalog) | `TerminusDB.Datalog` bridge (`to_woql`, `to_jsonld`, `from_triples`), optional `:datalog` dep | Pending |
+| **v0.3 (versioned workflows)** | Commit, Diff, Merge (rebase), WOQL DSL v0.1, TerminusDB 12 compat, integration tests | **Done** |
+| v0.3.1+ | GraphQL, WOQL DSL v0.2 (more vocabulary), benchmarks, tutorials | Pending |
+| v0.4 (Ecto) | `use TerminusDB.Schema` macro, schema generation, optional `:ecto` dep; research full `Ecto.Adapter` feasibility | Pending |
+| v0.5 (ExDatalog) | `TerminusDB.Datalog` bridge (`to_woql`, `to_jsonld`, `from_triples`), optional `:datalog` dep | Pending |
 | Release | CHANGELOG, release notes, migration guide, Hex.pm review, final review | Pending |
 
 ## Key references

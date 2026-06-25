@@ -5,6 +5,54 @@ All notable changes to `terminusdb_ex` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-06-25
+
+### Added — versioned query workflows and WOQL DSL
+
+- **`TerminusDB.Commit`**: commit history and inspection — `log/2`, `history/2`,
+  `get/3` (plus `!/` variants). Branch-aware with pagination (`:start`, `:limit`).
+- **`TerminusDB.Diff`**: document and branch-level diff — `compare/2` /
+  `compare!/2`. Supports `before`/`after` document values or branch/commit refs,
+  plus `:keep` for field preservation.
+- **`TerminusDB.Merge`**: branch merge (rebase) — `merge/2` (plus
+  `!/` variant). Uses the `/api/rebase` endpoint with `author`/`rebase_from`
+  body.
+- **`TerminusDB.WOQL`**: functional builder DSL (ADR-0002) — `triple/3`,
+  `and_/1`, `or_/1`, `eq/2`, `select/2`, `read_document/2`, `type_of/2`.
+  Serializes to the correct WOQL JSON-LD wire format (`NodeValue`/`DataValue`
+  wrappers, short type names like `"Triple"`, `"Equals"`). `to_jsonld/1` and
+  `from_jsonld/1` are round-trip tested. `execute/3` / `execute!/3` POST to
+  `/api/woql/:org/:db/:repo/branch/:branch` with `commit_info` support.
+- Telemetry areas `:commit` and `:woql` added to `TerminusDB.Telemetry`.
+- Integration tests for commit log/history, diff, merge (branch divergence +
+  rebase), and WOQL execution against a live TerminusDB 12.
+- Overview guide updated with Commit, Diff, Merge, and WOQL DSL sections.
+- 58 new unit tests (Commit, Diff, Merge, WOQL including round-trips).
+
+### Fixed (discovered via integration testing against TerminusDB 12)
+
+- `Schema.frame/3`: class name is now a `?type=` query param, not a path
+  segment (server returns 404 for path-appended class names).
+- `Branch.exists?/3`: rewrote to check `db/:org/:db?branches=true` branch list
+  (the `/branch` endpoint only supports POST/DELETE, not HEAD or GET).
+- `Document.query/3`: now always sends `as_list=true` (server returns
+  concatenated JSON by default, which crashes Req's JSON decoder).
+- `Commit.history/2`: uses the `/log` endpoint (the `/history` endpoint requires
+  a commit ID and cannot list without one).
+- `WOQL.eq/2`: type is `"Equals"` not `"Eq"`; literals are wrapped in
+  `DataValue` with xsd type annotations.
+- `Merge.merge/2`: uses `/rebase` with `author`/`rebase_from` body (not
+  `/pull` with `remote`/`remote_branch`, which causes 500 on local merges).
+- `WOQL.execute/3`: now includes `:repo`/`:branch` in the WOQL path
+  (`woql/:org/:db/:repo/branch/:branch`).
+
+### Changed
+
+- Version bumped to 0.3.0; `source_ref` updated for HexDocs.
+- TerminusDB 12 compatibility verified (v12.0.5): range queries, ISO8601 date
+  predicates, WOQL `comment`/`collect` predicates, cardinality on `Set`,
+  `@metadata`/`@context` JSON handling, diff+streaming in history endpoint.
+
 ## [0.2.0] — 2026-06-24
 
 ### Added — document, schema, branch, and streaming APIs
@@ -110,3 +158,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [0.1.0]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.1.0
 [0.2.0]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.2.0
+[0.3.0]: https://github.com/thanos/terminusdb-client-elixir/releases/tag/v0.3.0
