@@ -11,11 +11,11 @@ graph database with built-in version control. It is built on
 [Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
 making it safe for concurrent use.
 
-> **Status:** v0.3.0. `Config`, `Error`, `Telemetry`, `Client`, `Database`,
+> **Status:** v0.3.1. `Config`, `Error`, `Telemetry`, `Client`, `Database`,
 > `Document` (with streaming), `Schema`, `Branch`, `Commit`, `Diff`, `Merge`,
-> and `WOQL` are implemented and tested. GraphQL, Ecto, and ExDatalog
-> integrations are planned for later milestones. See `ARCHITECTURE.md` and
-> `AGENTS.md` for the roadmap.
+> and `WOQL` (v0.2 DSL — ~70 operators) are implemented and tested. GraphQL,
+> Ecto, and ExDatalog integrations are planned for later milestones. See
+> `ARCHITECTURE.md` and `AGENTS.md` for the roadmap.
 
 ## Installation
 
@@ -24,7 +24,7 @@ Add `terminusdb_client` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:terminusdb_client, "~> 0.3.0"}
+    {:terminusdb_client, "~> 0.3.1"}
   ]
 end
 ```

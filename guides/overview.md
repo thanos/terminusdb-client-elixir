@@ -366,15 +366,15 @@ query = type_of("v:Person", "v:Type")
 
 # Serialize to JSON-LD (inspect the wire format)
 jsonld = WOQL.to_jsonld(query)
-# => %{"@type" => "TypeOf", "value" => %{"@type" => "DataValue", ...}, ...}
+# => %{"@type" => "TypeOf", "value" => %{"@type" => "Value", ...}, ...}
 
 # Deserialize back
-WOQL.from_jsonld(jsonld)  # => %WOQL.Query{op: :type_of, args: [...]}
+WOQL.from_jsonld(jsonld)  # => %TerminusDB.WOQL{op: :type_of, args: [...]}
 
 # Write query with commit metadata
 query =
   and_([
-    triple("v:New", "rdf:type", "@schema:Person"),
+    triple("v:New", "rdf:type", iri("@schema:Person")),
     triple("v:New", "name", "v:Name"),
     eq("v:Name", "Eve")
   ])
@@ -468,6 +468,8 @@ string as an IRI in triple object position (string objects default to
 | `trim/2` | `Trim` | Strip whitespace |
 | `upper/2` | `Upper` | Uppercase |
 | `lower/2` | `Lower` | Lowercase |
+| `pad/4` | `Pad` | Pad string to length |
+| `split/3` | `Split` | Split by delimiter |
 | `length/2` | `Length` | List length |
 | `regexp/3` | `Regexp` | Regex match |
 

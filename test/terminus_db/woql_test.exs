@@ -701,6 +701,17 @@ defmodule TerminusDB.WOQLTest do
       assert length(q.args) == 2
     end
 
+    test "update_triple/3 round-trips as and_/opt/delete_triple/add_triple" do
+      q = WOQL.update_triple("v:S", "name", "Alice")
+      decoded = WOQL.from_jsonld(WOQL.to_jsonld(q))
+      assert decoded.op == :and
+      assert length(decoded.args) == 2
+      [opt, add] = decoded.args
+      assert opt.op == :opt
+      assert opt.args |> hd() |> Map.get(:op) == :delete_triple
+      assert add.op == :add_triple
+    end
+
     test "decodes quad from Triple with graph" do
       q =
         WOQL.from_jsonld(%{
@@ -1217,11 +1228,15 @@ defmodule TerminusDB.WOQLTest do
     end
 
     test "parses exact times {n}" do
-      assert WOQL.Path.parse("friend{3}") == {:times, {:pred, "friend"}, 3, nil}
+      assert WOQL.Path.parse("friend{3}") == {:times, {:pred, "friend"}, 3, 3}
     end
 
     test "parses range times {n,m}" do
       assert WOQL.Path.parse("friend{1,3}") == {:times, {:pred, "friend"}, 1, 3}
+    end
+
+    test "parses unbounded times {n,}" do
+      assert WOQL.Path.parse("friend{3,}") == {:times, {:pred, "friend"}, 3, nil}
     end
 
     test "parses alternation" do
@@ -1245,6 +1260,22 @@ defmodule TerminusDB.WOQLTest do
     test "parses complex pattern" do
       assert WOQL.Path.parse("<friend{1,3}") ==
                {:times, {:inverse, "friend"}, 1, 3}
+    end
+
+    test "raises on empty string" do
+      assert_raise ArgumentError, fn -> WOQL.Path.parse("") end
+    end
+
+    test "raises on unbalanced parens" do
+      assert_raise ArgumentError, fn -> WOQL.Path.parse("(friend") end
+    end
+
+    test "raises on invalid quantifier" do
+      assert_raise ArgumentError, fn -> WOQL.Path.parse("friend{") end
+    end
+
+    test "raises on trailing pipe" do
+      assert_raise ArgumentError, fn -> WOQL.Path.parse("friend|") end
     end
   end
 
@@ -1685,12 +1716,11 @@ defmodule TerminusDB.WOQLTest do
       assert body["commit_info"]["message"] == "write query"
     end
 
-    test "raises when no database is scoped" do
+    test "returns {:error, _} when no database is scoped" do
       config = Config.new(endpoint: "http://localhost:6363", adapter: fn r -> {r, ok()} end)
 
-      assert_raise Error, fn ->
-        WOQL.execute(config, WOQL.triple("v:S", "p", "v:O"))
-      end
+      assert {:error, %Error{reason: :config}} =
+               WOQL.execute(config, WOQL.triple("v:S", "p", "v:O"))
     end
   end
 

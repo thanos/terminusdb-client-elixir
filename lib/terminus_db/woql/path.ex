@@ -1,5 +1,31 @@
 defmodule TerminusDB.WOQL.Path do
-  @moduledoc false
+  @moduledoc """
+  Path pattern parser and structured builders for WOQL path queries.
+
+  Supports two modes:
+
+  ## String-compiled parser
+
+      TerminusDB.WOQL.Path.parse("friend*{1,3}")
+      #=> {:times, {:pred, "friend"}, 1, 3}
+
+  Grammar: `predicate`, `<inverse`, `*` (star), `+` (plus), `{n}` / `{n,m}`
+  (bounded), `|` (or), `,` (sequence), `.` (any), `(...)` (grouping).
+
+  ## Structured builders
+
+      WOQL.Path.path_star(WOQL.Path.path_pred("friend"))
+      #=> {:star, {:pred, "friend"}}
+
+  ## Serialization
+
+  `to_jsonld/1` serializes a Path AST to the WOQL JSON-LD wire format.
+  `from_jsonld/1` deserializes back. `normalize/1` accepts either a string
+  or an AST tuple and returns an AST tuple.
+
+  This module is used internally by `WOQL.path/3` and `WOQL.path/4` but
+  can also be used directly for building path patterns programmatically.
+  """
 
   # Path pattern parser and structured builders for WOQL path queries.
   #
@@ -12,12 +38,17 @@ defmodule TerminusDB.WOQL.Path do
   # Grammar:
   #   pattern      := or
   #   or           := sequence ('|' sequence)*
-  #   sequence     := step+
+  #   sequence     := step (',' step)*
   #   step         := atom quantifier?
-  #   quantifier   := '*' | '+' | '{' int (',' int?)? '}'
+  #   quantifier   := '*' | '+' | '{' int '}' | '{' int ',' int '}' | '{' int ',' '}'
   #   atom         := predicate | '(' or ')' | inverse
   #   inverse      := '<' predicate
   #   predicate    := name | '.'
+  #
+  # Quantifier semantics:
+  #   {n}   — exactly n   (from=n, to=n)
+  #   {n,m} — from n to m (from=n, to=m)
+  #   {n,}  — at least n  (from=n, to=nil/unbounded)
   #
   # AST nodes are tagged tuples:
   #   {:pred, name}           — PathPredicate
@@ -105,10 +136,17 @@ defmodule TerminusDB.WOQL.Path do
 
   """
   @spec parse(String.t()) :: tuple()
+  def parse("") do
+    raise ArgumentError, "path pattern cannot be empty"
+  end
+
   def parse(pattern) when is_binary(pattern) do
     tokens = tokenize(pattern)
-    {ast, []} = parse_or(tokens)
-    ast
+
+    case parse_or(tokens) do
+      {ast, []} -> ast
+      _ -> raise ArgumentError, "invalid path pattern: #{inspect(pattern)}"
+    end
   end
 
   defp tokenize(pattern), do: tokenize(pattern, [], "")
@@ -116,15 +154,10 @@ defmodule TerminusDB.WOQL.Path do
   defp tokenize("", tokens, acc), do: Enum.reverse(reverse_push(acc, tokens))
 
   defp tokenize(<<c::utf8, rest::binary>>, tokens, acc)
-       when c in [?|, ?(, ?), ?*, ?+, ?{, ?}, ?<, ?.] do
+       when c in [?|, ?(, ?), ?*, ?+, ?{, ?}, ?<, ?,, ?.] do
     tokens = reverse_push(acc, tokens)
     char_token = char_to_token(<<c::utf8>>)
     tokenize(rest, [char_token | tokens], "")
-  end
-
-  defp tokenize(<<c::utf8, rest::binary>>, tokens, acc) when c == ?, do
-    tokens = reverse_push(acc, tokens)
-    tokenize(rest, tokens, "")
   end
 
   defp tokenize(<<c::utf8, rest::binary>>, tokens, acc) do
@@ -139,6 +172,7 @@ defmodule TerminusDB.WOQL.Path do
   defp char_to_token("{"), do: :lbrace
   defp char_to_token("}"), do: :rbrace
   defp char_to_token("<"), do: :lt
+  defp char_to_token(","), do: :comma
   defp char_to_token("."), do: :dot
 
   defp reverse_push("", tokens), do: tokens
@@ -146,15 +180,21 @@ defmodule TerminusDB.WOQL.Path do
 
   # parse_or := sequence ('|' sequence)*
   defp parse_or(tokens) do
-    {first, rest} = parse_seq(tokens)
+    case parse_seq(tokens) do
+      :no_match ->
+        :no_match
 
-    case rest do
-      [:pipe | rest2] ->
-        {second, rest3} = parse_or(rest2)
-        {{:or, [first, second]}, rest3}
+      {first, rest} ->
+        case rest do
+          [:pipe | rest2] ->
+            case parse_or(rest2) do
+              :no_match -> :no_match
+              {second, rest3} -> {{:or, [first, second]}, rest3}
+            end
 
-      _ ->
-        {first, rest}
+          _ ->
+            {first, rest}
+        end
     end
   end
 
@@ -167,6 +207,8 @@ defmodule TerminusDB.WOQL.Path do
         :no_match
 
       {step, rest} ->
+        rest = skip_comma(rest)
+
         if peek_stop(rest) do
           {step, rest}
         else
@@ -181,6 +223,8 @@ defmodule TerminusDB.WOQL.Path do
         {{:seq, Enum.reverse(acc)}, tokens}
 
       {step, rest} ->
+        rest = skip_comma(rest)
+
         if peek_stop(rest) do
           {{:seq, Enum.reverse([step | acc])}, rest}
         else
@@ -189,9 +233,13 @@ defmodule TerminusDB.WOQL.Path do
     end
   end
 
+  defp skip_comma([:comma | rest]), do: skip_comma(rest)
+  defp skip_comma(rest), do: rest
+
   defp peek_stop([]), do: true
   defp peek_stop([:pipe | _]), do: true
   defp peek_stop([:rparen | _]), do: true
+  defp peek_stop([:comma | _]), do: true
   defp peek_stop(_), do: false
 
   # parse_step := atom quantifier?
@@ -251,17 +299,19 @@ defmodule TerminusDB.WOQL.Path do
 
   defp parse_quantifier(_), do: :no_match
 
-  defp parse_times_rest([{:name, m} | rest], from) do
-    with {to, ""} <- Integer.parse(m),
-         [:rbrace | rest2] <- rest do
-      {{:times, nil, from, to}, rest2}
-    else
+  defp parse_times_rest([:comma, :rbrace | rest2], from) do
+    {{:times, nil, from, nil}, rest2}
+  end
+
+  defp parse_times_rest([:comma, {:name, m}, :rbrace | rest2], from) do
+    case Integer.parse(m) do
+      {to, ""} -> {{:times, nil, from, to}, rest2}
       _ -> :no_match
     end
   end
 
   defp parse_times_rest([:rbrace | rest2], from) do
-    {{:times, nil, from, nil}, rest2}
+    {{:times, nil, from, from}, rest2}
   end
 
   defp parse_times_rest(_, _), do: :no_match

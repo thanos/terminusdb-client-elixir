@@ -797,6 +797,10 @@ defmodule TerminusDB.WOQL do
   Composes an update: optionally delete any existing triple, then add the new
   one. Equivalent to `and_([opt(delete_triple(s, p, "v:OldObject")), add_triple(s, p, o)])`.
 
+  The internal variable `"v:OldObject"` is used to match any existing object
+  before deletion. Avoid using `"v:OldObject"` as a variable in surrounding
+  queries to prevent unintended unification.
+
   ## Examples
 
       iex> q = TerminusDB.WOQL.update_triple("v:S", "name", "Alice")
@@ -812,6 +816,10 @@ defmodule TerminusDB.WOQL do
   @doc """
   Composes an update: optionally delete any existing quad, then add the new
   one.
+
+  The internal variable `"v:OldObject"` is used to match any existing object
+  before deletion. Avoid using `"v:OldObject"` as a variable in surrounding
+  queries to prevent unintended unification.
 
   ## Examples
 
@@ -1755,20 +1763,22 @@ defmodule TerminusDB.WOQL do
   def execute(config, %__MODULE__{} = query, opts \\ []) do
     org = opts[:organization] || config.organization
 
-    db =
-      config.database ||
-        raise Error, reason: :http, message: "no database scoped in config"
+    case config.database do
+      nil ->
+        {:error, %Error{reason: :config, message: "no database scoped in config"}}
 
-    repo = opts[:repo] || config.repo
-    branch = opts[:branch] || config.branch
-    path = "woql/#{org}/#{db}/#{repo}/branch/#{branch}"
+      db ->
+        repo = opts[:repo] || config.repo
+        branch = opts[:branch] || config.branch
+        path = "woql/#{org}/#{db}/#{repo}/branch/#{branch}"
 
-    body =
-      %{"query" => to_jsonld(query)}
-      |> Params.maybe_put("commit_info", build_commit_info(opts))
-      |> Params.maybe_put("all_witnesses", opts[:all_witnesses])
+        body =
+          %{"query" => to_jsonld(query)}
+          |> Params.maybe_put("commit_info", build_commit_info(opts))
+          |> Params.maybe_put("all_witnesses", opts[:all_witnesses])
 
-    Client.request(config, :post, path, json: body, area: :woql)
+        Client.request(config, :post, path, json: body, area: :woql)
+    end
   end
 
   @doc """

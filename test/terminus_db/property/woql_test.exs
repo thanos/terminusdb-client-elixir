@@ -28,6 +28,15 @@ defmodule TerminusDB.Property.WOQLTest do
     ])
   end
 
+  # Generate an arithmetic value (variable or number only)
+  defp arith_value_gen do
+    one_of([
+      var_gen(),
+      integer(0..1000),
+      float(min: 0.0, max: 1000.0)
+    ])
+  end
+
   # Generate a leaf query (no sub-queries)
   defp leaf_query_gen do
     one_of([
@@ -63,6 +72,102 @@ defmodule TerminusDB.Property.WOQLTest do
       end,
       gen all(l <- value_gen(), r <- value_gen()) do
         WOQL.greater(l, r)
+      end,
+      gen all(l <- value_gen(), r <- value_gen()) do
+        WOQL.gte(l, r)
+      end,
+      gen all(l <- value_gen(), r <- value_gen()) do
+        WOQL.lte(l, r)
+      end,
+      gen all(el <- node_gen(), ty <- node_gen()) do
+        WOQL.isa(el, ty)
+      end,
+      gen all(p <- node_gen(), c <- node_gen()) do
+        WOQL.sub(p, c)
+      end,
+      gen all(v <- value_gen(), ty <- value_gen(), r <- value_gen()) do
+        WOQL.cast(v, ty, r)
+      end,
+      gen all(args <- list_of(arith_value_gen(), min_length: 2, max_length: 4)) do
+        WOQL.plus(args)
+      end,
+      gen all(args <- list_of(arith_value_gen(), min_length: 2, max_length: 4)) do
+        WOQL.minus(args)
+      end,
+      gen all(args <- list_of(arith_value_gen(), min_length: 2, max_length: 4)) do
+        WOQL.times(args)
+      end,
+      gen all(b <- arith_value_gen(), e <- arith_value_gen()) do
+        WOQL.exp(b, e)
+      end,
+      gen all(v <- arith_value_gen()) do
+        WOQL.floor(v)
+      end,
+      gen all(args <- list_of(arith_value_gen(), min_length: 2, max_length: 4)) do
+        WOQL.eval(WOQL.plus(args), "v:Result")
+      end,
+      gen all(lst <- list_of(value_gen(), min_length: 1, max_length: 3), r <- var_gen()) do
+        WOQL.concat(lst, r)
+      end,
+      gen all(l <- value_gen(), g <- value_gen(), r <- value_gen()) do
+        WOQL.join(l, g, r)
+      end,
+      gen all(u <- value_gen(), t <- value_gen()) do
+        WOQL.trim(u, t)
+      end,
+      gen all(l <- value_gen(), r <- value_gen()) do
+        WOQL.upper(l, r)
+      end,
+      gen all(l <- value_gen(), r <- value_gen()) do
+        WOQL.lower(l, r)
+      end,
+      gen all(lst <- value_gen(), len <- value_gen()) do
+        WOQL.length(lst, len)
+      end,
+      gen all(d <- value_gen(), f <- value_gen(), v <- value_gen()) do
+        WOQL.dot(d, f, v)
+      end,
+      gen all(m <- value_gen(), lst <- value_gen()) do
+        WOQL.member(m, lst)
+      end,
+      gen all(a <- value_gen(), b <- value_gen(), r <- value_gen()) do
+        WOQL.set_difference(a, b, r)
+      end,
+      gen all(a <- value_gen(), b <- value_gen(), r <- value_gen()) do
+        WOQL.set_intersection(a, b, r)
+      end,
+      gen all(a <- value_gen(), b <- value_gen(), r <- value_gen()) do
+        WOQL.set_union(a, b, r)
+      end,
+      gen all(e <- value_gen(), s <- value_gen()) do
+        WOQL.set_member(e, s)
+      end,
+      gen all(lst <- value_gen(), r <- value_gen()) do
+        WOQL.sum(lst, r)
+      end,
+      gen all(doc <- value_gen()) do
+        WOQL.insert_document(doc)
+      end,
+      gen all(doc <- value_gen()) do
+        WOQL.update_document(doc)
+      end,
+      gen all(id <- node_gen()) do
+        WOQL.delete_document(id)
+      end,
+      gen all(g <- string(:alphanumeric, min_length: 1, max_length: 10), sz <- var_gen()) do
+        WOQL.size(g, sz)
+      end,
+      gen all(g <- string(:alphanumeric, min_length: 1, max_length: 10), c <- var_gen()) do
+        WOQL.triple_count(g, c)
+      end,
+      gen all(c <- string(:alphanumeric, min_length: 1, max_length: 10), q <- query_gen(2)) do
+        WOQL.using(c, q)
+      end,
+      gen all(g <- string(:alphanumeric, min_length: 1, max_length: 10), q <- query_gen(2)) do
+        WOQL.from(g, q)
+      end,
+      gen all(txt <- string(:alphanumeric, min_length: 1, max_length: 20), q <- query_gen(2)) do
+        WOQL.comment(txt, q)
       end
     ])
   end

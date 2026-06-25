@@ -36,6 +36,7 @@ defmodule TerminusDB.Integration.WOQLTest do
       %{
         "@type" => "Class",
         "@id" => "Person",
+        "@key" => %{"@type" => "Lexical", "@fields" => ["name"]},
         "name" => "xsd:string",
         "age" => "xsd:integer"
       },
@@ -54,8 +55,15 @@ defmodule TerminusDB.Integration.WOQLTest do
     )
   end
 
+  defp extract_value(%{"@value" => value}), do: value
+  defp extract_value(value), do: value
+
+  defp binding_values(bindings, key) do
+    Enum.map(bindings, fn b -> extract_value(Map.get(b, key)) end)
+  end
+
   describe "query modifiers" do
-    test "limit and start paginate results", %{config: cfg} do
+    test "limit restricts result count", %{config: cfg} do
       insert_schema(cfg)
       insert_person(cfg, "Alice", 30)
       insert_person(cfg, "Bob", 25)
@@ -75,10 +83,10 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
-      assert length(result["bindings"]) <= 2
+      assert length(result["bindings"]) == 2
     end
 
-    test "order_by orders results", %{config: cfg} do
+    test "order_by returns results in ascending order", %{config: cfg} do
       insert_schema(cfg)
       insert_person(cfg, "Alice", 30)
       insert_person(cfg, "Bob", 25)
@@ -99,10 +107,13 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
-      assert is_list(result["bindings"])
+      ages = binding_values(result["bindings"], "Age")
+      assert ages == Enum.sort(ages)
+      assert 25 in ages
+      assert 40 in ages
     end
 
-    test "count counts solutions", %{config: cfg} do
+    test "count returns the number of persons", %{config: cfg} do
       insert_schema(cfg)
       insert_person(cfg, "Alice", 30)
       insert_person(cfg, "Bob", 25)
@@ -117,7 +128,8 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
-      assert is_list(result["bindings"])
+      [binding] = result["bindings"]
+      assert extract_value(binding["N"]) == 2
     end
   end
 
@@ -138,7 +150,8 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
-      assert result["bindings"] != []
+      names = binding_values(result["bindings"], "Name")
+      assert "Alice" in names
     end
   end
 
@@ -162,7 +175,10 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
-      assert is_list(result["bindings"])
+      names = binding_values(result["bindings"], "Name")
+      assert "Alice" in names
+      assert "Bob" in names
+      refute "Carol" in names
     end
   end
 
@@ -181,7 +197,7 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
-      assert is_list(result["bindings"])
+      assert result["bindings"] != []
     end
   end
 
@@ -191,7 +207,11 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       query =
         WOQL.and_([
-          WOQL.insert_document(WOQL.string("Person/Bob"))
+          WOQL.insert_document(%{
+            "@type" => "Person",
+            "name" => "Bob",
+            "age" => 35
+          })
         ])
 
       {:ok, result} =
@@ -201,6 +221,9 @@ defmodule TerminusDB.Integration.WOQLTest do
         )
 
       assert result["api:status"] == "api:success"
+
+      {:ok, doc} = Document.get(cfg, "Person/Bob")
+      assert doc["name"] == "Bob"
     end
 
     test "delete_document via WOQL", %{config: cfg} do
@@ -219,6 +242,7 @@ defmodule TerminusDB.Integration.WOQLTest do
         )
 
       assert result["api:status"] == "api:success"
+      assert {:error, _} = Document.get(cfg, "Person/Alice")
     end
   end
 
@@ -228,8 +252,8 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       add_query =
         WOQL.and_([
-          WOQL.add_triple("v:S", "name", "Alice"),
-          WOQL.add_triple("v:S", "rdf:type", WOQL.iri("@schema:Person"))
+          WOQL.add_triple("Person/Test", "name", "Test"),
+          WOQL.add_triple("Person/Test", "rdf:type", WOQL.iri("@schema:Person"))
         ])
 
       {:ok, add_result} =
@@ -239,6 +263,18 @@ defmodule TerminusDB.Integration.WOQLTest do
         )
 
       assert add_result["api:status"] == "api:success"
+
+      read_query =
+        WOQL.select(
+          ["v:Name"],
+          WOQL.and_([
+            WOQL.triple("Person/Test", "name", "v:Name")
+          ])
+        )
+
+      {:ok, read_result} = WOQL.execute(cfg, read_query)
+      names = binding_values(read_result["bindings"], "Name")
+      assert "Test" in names
     end
   end
 
@@ -251,6 +287,7 @@ defmodule TerminusDB.Integration.WOQLTest do
         %{
           "@type" => "Class",
           "@id" => "Knows",
+          "@key" => %{"@type" => "Lexical", "@fields" => ["source", "target"]},
           "source" => "Person",
           "target" => "Person"
         },
@@ -261,18 +298,35 @@ defmodule TerminusDB.Integration.WOQLTest do
 
       insert_person(cfg, "Alice", 30)
       insert_person(cfg, "Bob", 25)
+      insert_person(cfg, "Carol", 40)
+
+      Document.insert!(
+        cfg,
+        %{"@type" => "Knows", "source" => "Person/Alice", "target" => "Person/Bob"},
+        author: "admin",
+        message: "Alice knows Bob"
+      )
+
+      Document.insert!(
+        cfg,
+        %{"@type" => "Knows", "source" => "Person/Bob", "target" => "Person/Carol"},
+        author: "admin",
+        message: "Bob knows Carol"
+      )
 
       query =
         WOQL.select(
           ["v:Target"],
           WOQL.and_([
             WOQL.triple("v:S", "name", WOQL.string("Alice")),
-            WOQL.path("v:S", "<target*", "v:Target")
+            WOQL.path("v:S", "target+", "v:Target")
           ])
         )
 
       {:ok, result} = WOQL.execute(cfg, query)
       assert result["api:status"] == "api:success"
+      targets = binding_values(result["bindings"], "Target")
+      assert "Bob" in targets or "Person/Bob" in targets
     end
   end
 end

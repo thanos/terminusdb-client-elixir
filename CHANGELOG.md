@@ -5,18 +5,18 @@ All notable changes to `terminusdb_ex` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] — unreleased
+## [0.3.1] — 2026-06-25
 
 ### Added — WOQL DSL v0.2 (ADR-0008)
 
 Expanded the WOQL builder DSL from 7 operators to ~70, covering the core and
 important-advanced vocabulary (Tier 1+2).
 
-- **Logical combinators:** `not/1`, `opt/1` (alias `optional/1`), `once/1`,
+- **Logical combinators:** `not_/1`, `opt/1` (alias `optional/1`), `once/1`,
   `immediately/1`.
 - **Query modifiers:** `distinct/2`, `limit/2`, `start/2`, `order_by/2` (accepts
-  tuple-list or keyword-list form), `group_by/4`, `count/2`, `collect/3`, `star/0..4`,
-  `all/0..4`.
+  tuple-list or keyword-list form), `group_by/4`, `count/2`, `collect/3`, `star/0`,
+  `all/0`.
 - **Graph patterns:** `quad/4`, `added_triple/3`, `removed_triple/3`, `added_quad/4`,
   `removed_quad/4`, `add_triple/3`, `delete_triple/3`, `add_quad/4`, `delete_quad/4`,
   `update_triple/3`, `update_quad/4`.
@@ -35,11 +35,11 @@ important-advanced vocabulary (Tier 1+2).
   `path_pred/1`, `path_any/0`).
 - **ID generation:** `unique/3`, `idgen/3` (alias `idgenerator/3`), `idgen_random/2`
   (alias `random_idgen/2`).
-- **Documents:** `insert_document/2`, `update_document/2`, `delete_document/1`.
+- **Documents:** `insert_document/1`, `update_document/1`, `delete_document/1`.
 - **Graph context:** `using/2`, `from/2`, `into/2`, `comment/2`.
 - **Graph meta:** `size/2`, `triple_count/2`.
 - **Literal/value helpers:** `var/1`, `iri/1`, `string/1`, `boolean/1`, `datetime/1`,
-  `date/1`, `literal/2`, `true/0`.
+  `date/1`, `literal/2`, `true_/0`.
 
 ### Changed
 
@@ -58,14 +58,20 @@ important-advanced vocabulary (Tier 1+2).
 - **`float` literals:** encode as `xsd:decimal` in the query builder (matches Python's
   wire output).
 - Module split: `woql.ex` now delegates encoding/decoding/path/literal helpers to
-  `TerminusDB.WOQL.Encoder`, `TerminusDB.WOQL.Decoder`, `TerminusDB.WOQL.Path`, and
-  `TerminusDB.WOQL.Literal`.
-- Version bumped to 0.3.1-dev; `source_ref` updated for HexDocs.
+  internal sub-modules (Encoder, Decoder, Path, Literal).
+- Version bumped to 0.3.1; `source_ref` updated for HexDocs.
 
 ### Fixed
 
 - `read_document/2`: field ordering now matches the canonical WOQL JSON-LD wire format
   (was reversed, causing incorrect encoding).
+- Path parser: now raises `ArgumentError` on empty or malformed patterns instead
+  of crashing with `MatchError`.
+- Path quantifier `{n}` now correctly produces `PathTimes` with `to = n` (exactly n),
+  distinguishing it from `{n,}` (at least n, unbounded).
+- `WOQL.execute/3`: now returns `{:error, %Error{reason: :config}}` when no database
+  is scoped in config, instead of raising. Added `:config` to `TerminusDB.Error`
+  reason types.
 
 ### Deferred to v0.3.2+
 
