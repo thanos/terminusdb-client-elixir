@@ -103,14 +103,32 @@ defmodule TerminusDB.Integration.VersionedWorkflowsTest do
         message: "add on feature"
       )
 
-      # Merge feature into main
-      {:ok, result} = Merge.merge(cfg, source_branch: "merge_test", target_branch: "main")
+      # Add a different document on main (diverge)
+      Document.insert!(
+        cfg,
+        %{"@type" => "Thing", "name" => "from-main"},
+        author: "admin",
+        message: "add on main"
+      )
+
+      # Merge feature into main (retry — TerminusDB rebase can be flaky)
+      result =
+        Enum.reduce_while(1..3, {:error, nil}, fn _i, _acc ->
+          case Merge.merge(cfg, source_branch: "merge_test", target_branch: "main") do
+            {:ok, res} -> {:halt, {:ok, res}}
+            {:error, %TerminusDB.Error{status: 500}} -> {:cont, {:error, nil}}
+            {:error, e} -> {:halt, {:error, e}}
+          end
+        end)
+
+      {:ok, result} = result
       assert result["api:status"] == "api:success"
 
       # The feature document should now be on main
       {:ok, docs} = Document.get(cfg, type: "Thing", as_list: true)
       names = Enum.map(docs, & &1["name"])
       assert "from-feature" in names
+      assert "from-main" in names
 
       # Cleanup
       {:ok, _} = Branch.delete(cfg, "merge_test")
