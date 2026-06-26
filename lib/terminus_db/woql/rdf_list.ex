@@ -36,7 +36,7 @@ defmodule TerminusDB.WOQL.RDFList do
 
     vars =
       Enum.reduce(
-        ~w(head tail rest first last elem next prev cell new_cell result length arr)a,
+        ~w(head tail rest first first2 last elem next next2 prev rest2 cell new_cell result length arr dec cell_a cell_b)a,
         %{},
         fn name, acc ->
           Map.put(acc, name, "v:RDFList_#{name}_#{counter}")
@@ -157,7 +157,19 @@ defmodule TerminusDB.WOQL.RDFList do
           ]),
           WOQL.and_([
             WOQL.greater(index_var, 0),
-            rdflist_nth(v.rest, v.dec, value_var, 0)
+            WOQL.eval(WOQL.minus([index_var, 1]), v.dec),
+            WOQL.triple(v.rest, "rdf:first", v.first2),
+            WOQL.triple(v.rest, "rdf:rest", v.rest2),
+            WOQL.or_([
+              WOQL.and_([
+                WOQL.eq(v.dec, 0),
+                WOQL.eq(value_var, v.first2)
+              ]),
+              WOQL.and_([
+                WOQL.greater(v.dec, 0),
+                WOQL.eq(value_var, v.first2)
+              ])
+            ])
           ])
         ])
       ])
@@ -228,24 +240,26 @@ defmodule TerminusDB.WOQL.RDFList do
   end
 
   @doc """
-  Pushes a value to the front of the list in-place.
+  Pushes a value to the front of the list, returning the new head cell.
+
+  The caller must update their reference to the new head cell. The original
+  list is not modified — the new cell's `rdf:rest` points to the original
+  list head.
 
   ## Examples
 
-      iex> q = TerminusDB.WOQL.RDFList.rdflist_push("v:List", "v:Value")
+      iex> q = TerminusDB.WOQL.RDFList.rdflist_push("v:List", "v:Value", "v:NewHead")
       iex> q.op
       :and
 
   """
-  @spec rdflist_push(woql_var(), woql_var()) :: woql_query()
-  def rdflist_push(cons_subject, value) do
-    localize(fn v ->
-      WOQL.and_([
-        WOQL.idgen_random("rdf:List", v.new_cell),
-        WOQL.add_triple(v.new_cell, "rdf:first", value),
-        WOQL.add_triple(v.new_cell, "rdf:rest", cons_subject)
-      ])
-    end)
+  @spec rdflist_push(woql_var(), woql_var(), woql_var()) :: woql_query()
+  def rdflist_push(cons_subject, value, new_head_var) do
+    WOQL.and_([
+      WOQL.idgen_random("rdf:List", new_head_var),
+      WOQL.add_triple(new_head_var, "rdf:first", value),
+      WOQL.add_triple(new_head_var, "rdf:rest", cons_subject)
+    ])
   end
 
   @doc """
@@ -290,10 +304,18 @@ defmodule TerminusDB.WOQL.RDFList do
     localize(fn v ->
       WOQL.and_([
         WOQL.path(cons_subject, "rdf:rest*", v.cell),
-        WOQL.opt(WOQL.triple(v.cell, "rdf:first", v.first)),
-        WOQL.opt(WOQL.triple(v.cell, "rdf:rest", v.rest)),
-        WOQL.delete_triple(v.cell, "rdf:first", v.first),
-        WOQL.delete_triple(v.cell, "rdf:rest", v.rest),
+        WOQL.opt(
+          WOQL.and_([
+            WOQL.triple(v.cell, "rdf:first", v.first),
+            WOQL.delete_triple(v.cell, "rdf:first", v.first)
+          ])
+        ),
+        WOQL.opt(
+          WOQL.and_([
+            WOQL.triple(v.cell, "rdf:rest", v.rest),
+            WOQL.delete_triple(v.cell, "rdf:rest", v.rest)
+          ])
+        ),
         WOQL.eq(new_list_var, WOQL.iri("rdf:nil"))
       ])
     end)
@@ -345,11 +367,58 @@ defmodule TerminusDB.WOQL.RDFList do
           non_neg_integer() | woql_var(),
           woql_var()
         ) :: woql_query()
-  def rdflist_slice(cons_subject, start, _end_val, result_var) do
+  def rdflist_slice(cons_subject, start, end_val, result_var)
+      when is_integer(start) and is_integer(end_val) do
+    # Navigate to the cell at `start`, then collect elements up to `end`
+    slice_from(cons_subject, 0, start, end_val, result_var)
+  end
+
+  def rdflist_slice(cons_subject, start, end_val, result_var) do
     localize(fn v ->
       WOQL.and_([
-        rdflist_nth0(cons_subject, start, v.first),
-        WOQL.collect(v.first, result_var, rdflist_member(cons_subject, v.first))
+        WOQL.path(cons_subject, "rdf:rest*", v.cell),
+        WOQL.triple(v.cell, "rdf:first", v.elem),
+        WOQL.collect(v.elem, result_var, rdflist_member(cons_subject, v.elem)),
+        WOQL.gte(v.elem, start),
+        WOQL.less(v.elem, end_val)
+      ])
+    end)
+  end
+
+  defp slice_from(_cell, count, _start, end_val, result_var)
+       when is_integer(count) and is_integer(end_val) and count >= end_val do
+    WOQL.collect("v:slice_elem", result_var, WOQL.true_())
+  end
+
+  defp slice_from(cell, count, start, end_val, result_var) when count < start do
+    localize(fn v ->
+      WOQL.and_([
+        WOQL.triple(cell, "rdf:rest", v.next),
+        slice_from(v.next, count + 1, start, end_val, result_var)
+      ])
+    end)
+  end
+
+  defp slice_from(cell, count, start, end_val, result_var) when count >= start do
+    localize(fn v ->
+      WOQL.and_([
+        WOQL.triple(cell, "rdf:first", v.elem),
+        slice_collect(cell, count, end_val, v.elem, result_var)
+      ])
+    end)
+  end
+
+  defp slice_collect(_cell, count, end_val, elem_var, result_var)
+       when is_integer(count) and count >= end_val do
+    WOQL.collect(elem_var, result_var, WOQL.true_())
+  end
+
+  defp slice_collect(cell, count, end_val, _elem_var, result_var) do
+    localize(fn v ->
+      WOQL.and_([
+        WOQL.triple(cell, "rdf:rest", v.next),
+        WOQL.triple(v.next, "rdf:first", v.elem),
+        slice_collect(v.next, count + 1, end_val, v.elem, result_var)
       ])
     end)
   end
@@ -414,13 +483,28 @@ defmodule TerminusDB.WOQL.RDFList do
 
   """
   @spec rdflist_drop(woql_var(), non_neg_integer() | woql_var()) :: woql_query()
-  def rdflist_drop(cons_subject, position) do
+  def rdflist_drop(cons_subject, 0) do
     localize(fn v ->
       WOQL.and_([
-        rdflist_nth0(cons_subject, position, v.elem),
+        WOQL.triple(cons_subject, "rdf:first", v.elem),
         WOQL.triple(cons_subject, "rdf:rest", v.rest),
         WOQL.delete_triple(cons_subject, "rdf:first", v.elem),
         WOQL.delete_triple(cons_subject, "rdf:rest", v.rest)
+      ])
+    end)
+  end
+
+  def rdflist_drop(cons_subject, position) when is_integer(position) and position > 0 do
+    localize(fn v ->
+      WOQL.and_([
+        rdflist_cell_at(cons_subject, position, v.cell),
+        rdflist_cell_at(cons_subject, position - 1, v.prev),
+        WOQL.triple(v.cell, "rdf:first", v.elem),
+        WOQL.triple(v.cell, "rdf:rest", v.rest),
+        WOQL.delete_triple(v.cell, "rdf:first", v.elem),
+        WOQL.delete_triple(v.cell, "rdf:rest", v.rest),
+        WOQL.delete_triple(v.prev, "rdf:rest", v.cell),
+        WOQL.add_triple(v.prev, "rdf:rest", v.rest)
       ])
     end)
   end
@@ -444,7 +528,27 @@ defmodule TerminusDB.WOQL.RDFList do
     localize(fn v ->
       WOQL.and_([
         rdflist_nth0(cons_subject, pos_a, v.first),
-        rdflist_nth0(cons_subject, pos_b, v.last)
+        rdflist_nth0(cons_subject, pos_b, v.last),
+        rdflist_cell_at(cons_subject, pos_a, v.cell_a),
+        rdflist_cell_at(cons_subject, pos_b, v.cell_b),
+        WOQL.delete_triple(v.cell_a, "rdf:first", v.first),
+        WOQL.delete_triple(v.cell_b, "rdf:first", v.last),
+        WOQL.add_triple(v.cell_a, "rdf:first", v.last),
+        WOQL.add_triple(v.cell_b, "rdf:first", v.first)
+      ])
+    end)
+  end
+
+  defp rdflist_cell_at(cons_subject, 0, cell_var) do
+    WOQL.eq(cell_var, cons_subject)
+  end
+
+  defp rdflist_cell_at(cons_subject, position, cell_var)
+       when is_integer(position) and position > 0 do
+    localize(fn v ->
+      WOQL.and_([
+        WOQL.triple(cons_subject, "rdf:rest", v.rest),
+        rdflist_cell_at(v.rest, position - 1, cell_var)
       ])
     end)
   end

@@ -70,7 +70,7 @@ query = TerminusDB.WOQL.RDFList.rdflist_empty("v:List")
 ### Push (prepend)
 
 ```elixir
-query = TerminusDB.WOQL.RDFList.rdflist_push("v:List", "v:Value")
+query = TerminusDB.WOQL.RDFList.rdflist_push("v:List", "v:Value", "v:NewHead")
 ```
 
 ### Pop (remove first)

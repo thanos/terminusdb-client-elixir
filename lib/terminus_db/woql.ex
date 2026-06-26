@@ -2488,9 +2488,17 @@ defmodule TerminusDB.WOQL do
     if is_binary(body) do
       body
       |> String.split("\n", trim: true)
-      |> Enum.map(&Jason.decode!/1)
-      |> Enum.reject(&(&1["@type"] == "PrefaceRecord" or &1["@type"] == "PostscriptRecord"))
-      |> Stream.concat([])
+      |> Stream.map(fn line ->
+        case Jason.decode(line) do
+          {:ok, decoded} -> decoded
+          {:error, reason} -> {:stream_decode_error, line, reason}
+        end
+      end)
+      |> Stream.reject(fn
+        {:stream_decode_error, _, _} -> false
+        %{"@type" => type} when type in ["PrefaceRecord", "PostscriptRecord"] -> true
+        _ -> false
+      end)
     else
       Stream.reject(body, &(&1["@type"] == "PrefaceRecord" or &1["@type"] == "PostscriptRecord"))
     end

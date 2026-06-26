@@ -997,6 +997,10 @@ defmodule TerminusDB.WOQL.Encoder do
 
   def encode_arithmetic(%TerminusDB.WOQL{} = q), do: encode(q)
 
+  def encode_arithmetic(value) when is_binary(value) do
+    %{"@type" => "ArithmeticValue", "data" => %{"@type" => "xsd:string", "@value" => value}}
+  end
+
   def encode_arithmetic(value) when is_map(value), do: value
 
   # --------------------------------------------------------------------------

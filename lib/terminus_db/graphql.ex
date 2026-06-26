@@ -45,16 +45,6 @@ defmodule TerminusDB.GraphQL do
 
   @type result :: {:ok, %{data: term(), errors: [map()] | nil}} | {:error, Error.t()}
 
-  defp graphql_path(config, opts) do
-    org = opts[:organization] || config.organization
-
-    db =
-      config.database ||
-        raise Error, reason: :http, message: "no database scoped in config"
-
-    "graphql/#{org}/#{db}"
-  end
-
   @doc """
   Executes a GraphQL query against the database.
 
@@ -89,16 +79,23 @@ defmodule TerminusDB.GraphQL do
   end
 
   defp do_query(config, query_string, variables, opts) do
-    path = graphql_path(config, opts)
+    org = opts[:organization] || config.organization
 
-    body = Params.maybe_put(%{"query" => query_string}, "variables", variables)
+    case config.database do
+      nil ->
+        {:error, %Error{reason: :config, message: "no database scoped in config"}}
 
-    case Client.request(config, :post, path, json: body, area: :graphql) do
-      {:ok, resp} ->
-        {:ok, %{data: resp["data"], errors: resp["errors"]}}
+      db ->
+        path = "graphql/#{org}/#{db}"
+        body = Params.maybe_put(%{"query" => query_string}, "variables", variables)
 
-      {:error, _} = error ->
-        error
+        case Client.request(config, :post, path, json: body, area: :graphql) do
+          {:ok, resp} ->
+            {:ok, %{data: resp["data"], errors: resp["errors"]}}
+
+          {:error, _} = error ->
+            error
+        end
     end
   end
 

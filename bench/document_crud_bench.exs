@@ -12,7 +12,7 @@ config =
   |> Config.with_database("bench_crud_#{:erlang.unique_integer([:positive])}")
 
 # Seed
-seeded = Benchmark.seed_database(config, 100)
+{seeded, db_name} = Benchmark.seed_database(config, 100)
 
 Benchee.run(
   %{
@@ -33,4 +33,4 @@ Benchee.run(
 )
 
 # Cleanup
-TerminusDB.Database.delete(config, config.database, force: true)
+TerminusDB.Database.delete(config, db_name, force: true)

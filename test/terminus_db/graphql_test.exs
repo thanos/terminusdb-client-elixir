@@ -105,14 +105,14 @@ defmodule TerminusDB.GraphQLTest do
       assert result.data == %{"Person" => []}
     end
 
-    test "raises when no database is scoped" do
+    test "returns {:error, _} when no database is scoped" do
       cfg =
         Config.new(
           endpoint: "http://localhost:6363",
           adapter: fn req -> {req, Req.Response.new(status: 200, body: %{})} end
         )
 
-      assert_raise TerminusDB.Error, fn -> GraphQL.query(cfg, "{ Person { name } }") end
+      assert {:error, _} = GraphQL.query(cfg, "{ Person { name } }")
     end
 
     test "honors :organization override" do

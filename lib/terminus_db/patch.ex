@@ -80,6 +80,11 @@ defmodule TerminusDB.Patch do
   Extracts the "after" (updated) values from `SwapValue` operations,
   recursively.
 
+  Only fields containing `SwapValue` operations are included in the result.
+  Non-`SwapValue` fields are omitted. This is intentionally asymmetric with
+  `before/1`, which includes all fields (preserving non-`SwapValue` values)
+  to allow full reconstruction of the "before" state.
+
   ## Examples
 
       iex> patch = %TerminusDB.Patch{content: %{"name" => %{"@op" => "SwapValue", "@before" => "old", "@after" => "new"}}}
@@ -94,6 +99,11 @@ defmodule TerminusDB.Patch do
 
   @doc """
   Extracts the "before" values from `SwapValue` operations, recursively.
+
+  Includes all fields from the patch content, preserving non-`SwapValue`
+  values as-is. This is intentionally asymmetric with `update/1`, which
+  only includes `SwapValue` fields — `before/1` aims to reconstruct the
+  full "before" state while `update/1` shows only what changed.
 
   ## Examples
 

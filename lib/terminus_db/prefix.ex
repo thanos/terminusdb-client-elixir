@@ -26,16 +26,25 @@ defmodule TerminusDB.Prefix do
 
   defp prefix_base_path(config, opts) do
     org = opts[:organization] || config.organization
-    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
-    repo = opts[:repo] || config.repo
-    branch = config.branch
-    "prefix/#{org}/#{db}/#{repo}/branch/#{branch}"
+
+    case config.database do
+      nil ->
+        {:error, %Error{reason: :config, message: "no database scoped in config"}}
+
+      db ->
+        repo = opts[:repo] || config.repo
+        branch = config.branch
+        {:ok, "prefix/#{org}/#{db}/#{repo}/branch/#{branch}"}
+    end
   end
 
   defp prefixes_path(config, opts) do
     org = opts[:organization] || config.organization
-    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
-    "prefixes/#{org}/#{db}"
+
+    case config.database do
+      nil -> {:error, %Error{reason: :config, message: "no database scoped in config"}}
+      db -> {:ok, "prefixes/#{org}/#{db}"}
+    end
   end
 
   @doc """
@@ -54,12 +63,14 @@ defmodule TerminusDB.Prefix do
   """
   @spec get(Config.t(), String.t(), [prefix_opt()]) :: {:ok, String.t()} | {:error, Error.t()}
   def get(config, prefix_name, opts \\ []) do
-    path = "#{prefix_base_path(config, opts)}/#{prefix_name}"
+    with {:ok, base} <- prefix_base_path(config, opts) do
+      path = "#{base}/#{prefix_name}"
 
-    case Client.request(config, :get, path, area: :prefix) do
-      {:ok, %{"api:prefix_uri" => uri}} -> {:ok, uri}
-      {:ok, body} -> {:ok, body}
-      {:error, _} = error -> error
+      case Client.request(config, :get, path, area: :prefix) do
+        {:ok, %{"api:prefix_uri" => uri}} -> {:ok, uri}
+        {:ok, body} -> {:ok, body}
+        {:error, _} = error -> error
+      end
     end
   end
 
@@ -101,8 +112,10 @@ defmodule TerminusDB.Prefix do
   @spec add(Config.t(), String.t(), String.t(), [prefix_opt()]) ::
           {:ok, map()} | {:error, Error.t()}
   def add(config, prefix_name, uri, opts \\ []) do
-    path = "#{prefix_base_path(config, opts)}/#{prefix_name}"
-    Client.request(config, :post, path, json: %{"uri" => uri}, area: :prefix)
+    with {:ok, base} <- prefix_base_path(config, opts) do
+      path = "#{base}/#{prefix_name}"
+      Client.request(config, :post, path, json: %{"uri" => uri}, area: :prefix)
+    end
   end
 
   @doc """
@@ -143,8 +156,10 @@ defmodule TerminusDB.Prefix do
   @spec update(Config.t(), String.t(), String.t(), [prefix_opt()]) ::
           {:ok, map()} | {:error, Error.t()}
   def update(config, prefix_name, uri, opts \\ []) do
-    path = "#{prefix_base_path(config, opts)}/#{prefix_name}"
-    Client.request(config, :put, path, json: %{"uri" => uri}, area: :prefix)
+    with {:ok, base} <- prefix_base_path(config, opts) do
+      path = "#{base}/#{prefix_name}"
+      Client.request(config, :put, path, json: %{"uri" => uri}, area: :prefix)
+    end
   end
 
   @doc """
@@ -185,13 +200,15 @@ defmodule TerminusDB.Prefix do
   @spec upsert(Config.t(), String.t(), String.t(), [prefix_opt()]) ::
           {:ok, map()} | {:error, Error.t()}
   def upsert(config, prefix_name, uri, opts \\ []) do
-    path = "#{prefix_base_path(config, opts)}/#{prefix_name}"
+    with {:ok, base} <- prefix_base_path(config, opts) do
+      path = "#{base}/#{prefix_name}"
 
-    Client.request(config, :put, path,
-      json: %{"uri" => uri},
-      params: [create: true],
-      area: :prefix
-    )
+      Client.request(config, :put, path,
+        json: %{"uri" => uri},
+        params: [create: true],
+        area: :prefix
+      )
+    end
   end
 
   @doc """
@@ -232,8 +249,10 @@ defmodule TerminusDB.Prefix do
   @spec delete(Config.t(), String.t(), [prefix_opt()]) ::
           {:ok, map()} | {:error, Error.t()}
   def delete(config, prefix_name, opts \\ []) do
-    path = "#{prefix_base_path(config, opts)}/#{prefix_name}"
-    Client.request(config, :delete, path, area: :prefix)
+    with {:ok, base} <- prefix_base_path(config, opts) do
+      path = "#{base}/#{prefix_name}"
+      Client.request(config, :delete, path, area: :prefix)
+    end
   end
 
   @doc """
@@ -273,8 +292,9 @@ defmodule TerminusDB.Prefix do
   """
   @spec all(Config.t(), [prefix_opt()]) :: {:ok, map()} | {:error, Error.t()}
   def all(config, opts \\ []) do
-    path = prefixes_path(config, opts)
-    Client.request(config, :get, path, area: :prefix)
+    with {:ok, path} <- prefixes_path(config, opts) do
+      Client.request(config, :get, path, area: :prefix)
+    end
   end
 
   @doc """

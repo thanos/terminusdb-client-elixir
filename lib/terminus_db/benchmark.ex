@@ -36,8 +36,11 @@ defmodule TerminusDB.Benchmark do
 
   @doc """
   Creates a database with a Person schema and inserts `count` documents.
+
+  Returns `{config, db_name}` so callers can clean up the database after
+  benchmarking.
   """
-  @spec seed_database(Config.t(), pos_integer()) :: Config.t()
+  @spec seed_database(Config.t(), pos_integer()) :: {Config.t(), String.t()}
   def seed_database(config, count) do
     db_name = "bench_#{:erlang.unique_integer([:positive])}"
     Database.create!(config, db_name, label: "Benchmark", schema: true)
@@ -66,7 +69,7 @@ defmodule TerminusDB.Benchmark do
       message: "seed #{count} documents"
     )
 
-    scoped
+    {scoped, db_name}
   end
 
   @doc """

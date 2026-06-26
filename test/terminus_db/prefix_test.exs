@@ -172,9 +172,14 @@ defmodule TerminusDB.PrefixTest do
   end
 
   describe "error handling" do
-    test "raises when no database is scoped" do
+    test "returns {:error, _} when no database is scoped" do
       config = Config.new(endpoint: "http://localhost:6363", adapter: fn r -> {r, ok()} end)
-      assert_raise Error, fn -> Prefix.get(config, "ex") end
+      assert {:error, _} = Prefix.get(config, "ex")
+    end
+
+    test "all returns {:error, _} when no database is scoped" do
+      config = Config.new(endpoint: "http://localhost:6363", adapter: fn r -> {r, ok()} end)
+      assert {:error, _} = Prefix.all(config)
     end
 
     test "honors :organization override" do
