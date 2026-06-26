@@ -8,7 +8,8 @@ defmodule TerminusDB.Telemetry do
       [:terminusdb, <area>, :stop]
 
   where `<area>` is one of `:database`, `:document`, `:query`, `:branch`,
-  `:merge`, `:diff`, or `:connection`.
+  `:merge`, `:diff`, `:commit`, `:woql`, `:graphql`, `:prefix`, `:triples`,
+  `:remote`, or `:connection`.
 
   ## Measurements
 
@@ -47,6 +48,10 @@ defmodule TerminusDB.Telemetry do
           | :diff
           | :commit
           | :woql
+          | :graphql
+          | :prefix
+          | :triples
+          | :remote
           | :connection
 
   @doc """

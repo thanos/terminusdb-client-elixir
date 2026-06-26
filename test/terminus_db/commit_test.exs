@@ -120,4 +120,66 @@ defmodule TerminusDB.CommitTest do
       assert_raise Error, fn -> Commit.get!(db_config(adapter), "commit/missing") end
     end
   end
+
+  describe "document_history/3" do
+    test "GETs history/:org/:db with id param" do
+      test = self()
+
+      history = [
+        %{"author" => "admin", "identifier" => "abc", "message" => "Created"}
+      ]
+
+      adapter = capture(test, Req.Response.new(status: 200, body: history))
+
+      assert {:ok, ^history} =
+               Commit.document_history(db_config(adapter), id: "Person/Alice", count: 5)
+
+      req = last_request()
+      assert req.method == :get
+      assert req.url.path == "/api/history/admin/mydb"
+      assert req.url.query =~ "id=Person"
+      assert req.url.query =~ "count=5"
+    end
+
+    test "includes created and updated flags when provided" do
+      test = self()
+      adapter = capture(test, ok([]))
+
+      Commit.document_history(db_config(adapter),
+        id: "Person/Alice",
+        created: true,
+        updated: false
+      )
+
+      req = last_request()
+      assert req.url.query =~ "created=true"
+      assert req.url.query =~ "updated=false"
+    end
+
+    test "document_history! returns list or raises" do
+      adapter = fn req -> {req, Req.Response.new(status: 200, body: [%{"author" => "admin"}])} end
+
+      assert Commit.document_history!(db_config(adapter), id: "Person/Alice") == [
+               %{"author" => "admin"}
+             ]
+    end
+
+    test "document_history! raises on error" do
+      adapter = fn req -> {req, resp(500, %{"api:message" => "fail"})} end
+
+      assert_raise Error, fn ->
+        Commit.document_history!(db_config(adapter), id: "Person/Alice")
+      end
+    end
+
+    test "raises when no database is scoped" do
+      config = Config.new(endpoint: "http://localhost:6363", adapter: fn r -> {r, ok()} end)
+      assert_raise Error, fn -> Commit.document_history(config, id: "Person/Alice") end
+    end
+
+    test "raises KeyError when :id is missing" do
+      adapter = fn req -> {req, ok([])} end
+      assert_raise KeyError, fn -> Commit.document_history(db_config(adapter), count: 5) end
+    end
+  end
 end

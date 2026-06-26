@@ -338,5 +338,46 @@ defmodule TerminusDB.Database do
     end
   end
 
+  @doc """
+  Optimizes a resource path (branch, `_meta`, or `_commits` graph).
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, resp} = TerminusDB.Database.optimize(config, "admin/mydb/local/branch/main")
+      iex> resp["api:status"]
+      "api:success"
+
+  """
+  @spec optimize(TerminusDB.Config.t(), String.t()) ::
+          {:ok, map()} | {:error, TerminusDB.Error.t()}
+  def optimize(config, path) do
+    TerminusDB.Client.request(config, :post, "optimize/#{path}", area: :database)
+  end
+
+  @doc """
+  Optimizes a resource path, or raises.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> )
+      iex> TerminusDB.Database.optimize!(config, "_system")
+      %{"api:status" => "api:success"}
+
+  """
+  @spec optimize!(TerminusDB.Config.t(), String.t()) :: map()
+  def optimize!(config, path) do
+    case optimize(config, path) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
+
   # Helpers -------------------------------------------------------------------
 end

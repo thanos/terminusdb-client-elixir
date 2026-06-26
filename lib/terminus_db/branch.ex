@@ -29,11 +29,14 @@ defmodule TerminusDB.Branch do
   """
 
   alias TerminusDB.{Client, Config, Error}
+  alias TerminusDB.Client.Params
 
   @type branch_opt ::
           {:organization, String.t()}
           | {:repo, String.t()}
           | {:from, String.t()}
+          | {:author, String.t()}
+          | {:message, String.t()}
 
   defp branch_path(config, branch_name, opts) do
     repo = opts[:repo] || config.repo
@@ -154,6 +157,126 @@ defmodule TerminusDB.Branch do
       {:ok, body} -> body
       {:error, error} -> raise error
     end
+  end
+
+  @doc """
+  Squashes the current branch HEAD into a single commit.
+
+  ## Options
+
+  - `:author` — commit author.
+  - `:message` — commit message.
+  - `:organization` — overrides `config.organization`.
+  - `:repo` — overrides `config.repo`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success", "api:commit" => "abc123"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, resp} = TerminusDB.Branch.squash(config, author: "admin", message: "squash")
+      iex> resp["api:commit"]
+      "abc123"
+
+  """
+  @spec squash(Config.t(), [branch_opt()]) :: {:ok, map()} | {:error, Error.t()}
+  def squash(config, opts \\ []) do
+    path = squash_path(config, opts)
+
+    commit_info =
+      %{}
+      |> Params.maybe_put("author", opts[:author])
+      |> Params.maybe_put("message", opts[:message])
+
+    Client.request(config, :post, path, json: %{"commit_info" => commit_info}, area: :branch)
+  end
+
+  @doc """
+  Squashes the branch HEAD, or raises.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success", "api:commit" => "abc"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Branch.squash!(config, author: "admin", message: "squash")
+      %{"api:commit" => "abc"}
+
+  """
+  @spec squash!(Config.t(), [branch_opt()]) :: map()
+  def squash!(config, opts \\ []) do
+    case squash(config, opts) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Hard-resets the branch HEAD to a specific commit.
+
+  ## Options
+
+  - `:organization` — overrides `config.organization`.
+  - `:repo` — overrides `config.repo`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, resp} = TerminusDB.Branch.reset(config, "admin/mydb/local/commit/abc123")
+      iex> resp["api:status"]
+      "api:success"
+
+  """
+  @spec reset(Config.t(), String.t(), [branch_opt()]) :: {:ok, map()} | {:error, Error.t()}
+  def reset(config, commit_descriptor, opts \\ []) do
+    path = reset_path(config, opts)
+
+    Client.request(config, :post, path,
+      json: %{"commit_descriptor" => commit_descriptor},
+      area: :branch
+    )
+  end
+
+  @doc """
+  Hard-resets the branch HEAD, or raises.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Branch.reset!(config, "admin/mydb/local/commit/abc")
+      %{"api:status" => "api:success"}
+
+  """
+  @spec reset!(Config.t(), String.t(), [branch_opt()]) :: map()
+  def reset!(config, commit_descriptor, opts \\ []) do
+    case reset(config, commit_descriptor, opts) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
+
+  defp squash_path(config, opts) do
+    org = opts[:organization] || config.organization
+    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
+    repo = opts[:repo] || config.repo
+    branch = config.branch
+    "squash/#{org}/#{db}/#{repo}/branch/#{branch}"
+  end
+
+  defp reset_path(config, opts) do
+    org = opts[:organization] || config.organization
+    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
+    repo = opts[:repo] || config.repo
+    branch = config.branch
+    "reset/#{org}/#{db}/#{repo}/branch/#{branch}"
   end
 
   @doc """

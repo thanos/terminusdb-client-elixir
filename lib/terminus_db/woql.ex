@@ -3,12 +3,12 @@ defmodule TerminusDB.WOQL do
   A functional builder DSL for WOQL (Web Object Query Language).
 
   WOQL is TerminusDB's Datalog-based query language. This module provides a
-  comprehensive set of ~70 composable functions that build a `TerminusDB.WOQL.Query`
+  comprehensive set of ~100 composable functions that build a `TerminusDB.WOQL.Query`
   struct, which can be serialized to the JSON-LD wire format via `to_jsonld/1`
   and executed via `TerminusDB.WOQL.execute/3`.
 
-  This is WOQL DSL v0.2 (ADR-0008) — covering the core and important-advanced
-  vocabulary (Tier 1+2) matching the Python/JS clients.
+  This is WOQL DSL v0.2 (ADR-0008) extended in v0.3.2 with temporal/Allen,
+  CSV/IO, range queries, and an RDF list library.
 
   ## Design
 
@@ -165,6 +165,54 @@ defmodule TerminusDB.WOQL do
   | `size/2` | `Size` |
   | `triple_count/2` | `TripleCount` |
 
+  ### Range queries
+
+  | Function | WOQL JSON-LD type |
+  | --- | --- |
+  | `triple_slice/5`, `quad_slice/6` | `TripleSlice` |
+  | `triple_slice_rev/5`, `quad_slice_rev/6` | `TripleSliceRev` |
+  | `triple_next/4`, `quad_next/5` | `TripleNext` |
+  | `triple_previous/4`, `quad_previous/5` | `TriplePrevious` |
+
+  ### Temporal / Allen interval algebra
+
+  | Function | WOQL JSON-LD type |
+  | --- | --- |
+  | `interval/3` | `Interval` |
+  | `interval_start_duration/3` | `IntervalStartDuration` |
+  | `interval_duration_end/3` | `IntervalDurationEnd` |
+  | `interval_relation/5` | `IntervalRelation` |
+  | `interval_relation_typed/3` | `IntervalRelationTyped` |
+  | `date_duration/3` | `DateDuration` |
+  | `day_after/2` | `DayAfter` |
+  | `day_before/2` | `DayBefore` |
+  | `weekday/2` | `Weekday` |
+  | `weekday_sunday_start/2` | `WeekdaySundayStart` |
+  | `iso_week/3` | `IsoWeek` |
+  | `month_start_date/2` | `MonthStartDate` |
+  | `month_end_date/2` | `MonthEndDate` |
+  | `month_start_dates/3` | `MonthStartDates` |
+  | `month_end_dates/3` | `MonthEndDates` |
+  | `in_range/3` | `InRange` |
+  | `sequence/5` | `Sequence` |
+  | `range_min/2` | `RangeMin` |
+  | `range_max/2` | `RangeMax` |
+
+  ### CSV / IO
+
+  | Function | WOQL JSON-LD type |
+  | --- | --- |
+  | `get/2` | `Get` |
+  | `put/3` | `Put` |
+  | `woql_as/1` | `Column`/`Indicator` (helper) |
+  | `file/2` | `QueryResource` |
+  | `remote/2` | `QueryResource` |
+  | `post/2` | `QueryResource` |
+
+  ### RDF list library
+
+  See `TerminusDB.WOQL.RDFList` for 17 RDF list manipulation functions.
+
   ### Literal / value helpers
 
   | Function | Description |
@@ -207,7 +255,7 @@ defmodule TerminusDB.WOQL do
 
   @type woql_var :: String.t()
   @type woql_node :: String.t() | woql_var()
-  @type value :: String.t() | woql_var() | number() | boolean() | map()
+  @type value :: String.t() | woql_var() | number() | boolean() | map() | [value()]
 
   # --------------------------------------------------------------------------
   # Query builders
@@ -1703,6 +1751,567 @@ defmodule TerminusDB.WOQL do
   end
 
   # --------------------------------------------------------------------------
+  # Range queries
+  # --------------------------------------------------------------------------
+
+  @doc """
+  Builds a `TripleSlice` — triple pattern with half-open value range
+  [low, high) on the object.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.triple_slice("v:S", "v:P", "v:O", 10, 100)
+      iex> q.op
+      :triple_slice
+
+  """
+  @spec triple_slice(woql_node(), woql_node(), value(), value(), value()) :: t()
+  def triple_slice(subject, predicate, object, low, high) do
+    %__MODULE__{op: :triple_slice, args: [subject, predicate, object, low, high]}
+  end
+
+  @doc """
+  Builds a `TripleSlice` with an explicit graph selector.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.quad_slice("v:S", "v:P", "v:O", 10, 100, "instance")
+      iex> q.op
+      :triple_slice
+
+  """
+  @spec quad_slice(woql_node(), woql_node(), value(), value(), value(), String.t()) :: t()
+  def quad_slice(subject, predicate, object, low, high, graph) do
+    %__MODULE__{op: :triple_slice, args: [subject, predicate, object, low, high, graph]}
+  end
+
+  @doc """
+  Builds a `TripleSliceRev` — same as `triple_slice/5` but iterates in
+  descending order (high to low).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.triple_slice_rev("v:S", "v:P", "v:O", 10, 100)
+      iex> q.op
+      :triple_slice_rev
+
+  """
+  @spec triple_slice_rev(woql_node(), woql_node(), value(), value(), value()) :: t()
+  def triple_slice_rev(subject, predicate, object, low, high) do
+    %__MODULE__{op: :triple_slice_rev, args: [subject, predicate, object, low, high]}
+  end
+
+  @doc """
+  Builds a `TripleSliceRev` with an explicit graph selector.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.quad_slice_rev("v:S", "v:P", "v:O", 10, 100, "instance")
+      iex> q.op
+      :triple_slice_rev
+
+  """
+  @spec quad_slice_rev(woql_node(), woql_node(), value(), value(), value(), String.t()) :: t()
+  def quad_slice_rev(subject, predicate, object, low, high, graph) do
+    %__MODULE__{op: :triple_slice_rev, args: [subject, predicate, object, low, high, graph]}
+  end
+
+  @doc """
+  Builds a `TripleNext` — finds the next object value after a reference.
+  When object is bound and next is free, finds the smallest next > object.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.triple_next("v:S", "v:P", "v:O", "v:Next")
+      iex> q.op
+      :triple_next
+
+  """
+  @spec triple_next(woql_node(), woql_node(), value(), value()) :: t()
+  def triple_next(subject, predicate, object, next_val) do
+    %__MODULE__{op: :triple_next, args: [subject, predicate, object, next_val]}
+  end
+
+  @doc """
+  Builds a `TripleNext` with an explicit graph selector.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.quad_next("v:S", "v:P", "v:O", "v:Next", "instance")
+      iex> q.op
+      :triple_next
+
+  """
+  @spec quad_next(woql_node(), woql_node(), value(), value(), String.t()) :: t()
+  def quad_next(subject, predicate, object, next_val, graph) do
+    %__MODULE__{op: :triple_next, args: [subject, predicate, object, next_val, graph]}
+  end
+
+  @doc """
+  Builds a `TriplePrevious` — finds the previous object value before a
+  reference. When object is bound and previous is free, finds the largest
+  previous < object.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.triple_previous("v:S", "v:P", "v:O", "v:Prev")
+      iex> q.op
+      :triple_previous
+
+  """
+  @spec triple_previous(woql_node(), woql_node(), value(), value()) :: t()
+  def triple_previous(subject, predicate, object, prev_val) do
+    %__MODULE__{op: :triple_previous, args: [subject, predicate, object, prev_val]}
+  end
+
+  @doc """
+  Builds a `TriplePrevious` with an explicit graph selector.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.quad_previous("v:S", "v:P", "v:O", "v:Prev", "instance")
+      iex> q.op
+      :triple_previous
+
+  """
+  @spec quad_previous(woql_node(), woql_node(), value(), value(), String.t()) :: t()
+  def quad_previous(subject, predicate, object, prev_val, graph) do
+    %__MODULE__{op: :triple_previous, args: [subject, predicate, object, prev_val, graph]}
+  end
+
+  # --------------------------------------------------------------------------
+  # Temporal / Allen interval algebra
+  # --------------------------------------------------------------------------
+
+  @doc """
+  Builds an `Interval` — constructs/deconstructs a half-open
+  `xdd:dateTimeInterval` [start, end).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.interval("v:Start", "v:End", "v:I")
+      iex> q.op
+      :interval
+
+  """
+  @spec interval(value(), value(), value()) :: t()
+  def interval(start_val, end_val, interval_val) do
+    %__MODULE__{op: :interval, args: [start_val, end_val, interval_val]}
+  end
+
+  @doc """
+  Builds an `IntervalStartDuration` — relates interval to start endpoint
+  and precise `xsd:duration`.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.interval_start_duration("v:Start", "v:Dur", "v:I")
+      iex> q.op
+      :interval_start_duration
+
+  """
+  @spec interval_start_duration(value(), value(), value()) :: t()
+  def interval_start_duration(start_val, duration, interval_val) do
+    %__MODULE__{op: :interval_start_duration, args: [start_val, duration, interval_val]}
+  end
+
+  @doc """
+  Builds an `IntervalDurationEnd` — relates interval to end endpoint
+  and precise `xsd:duration`.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.interval_duration_end("v:Dur", "v:End", "v:I")
+      iex> q.op
+      :interval_duration_end
+
+  """
+  @spec interval_duration_end(value(), value(), value()) :: t()
+  def interval_duration_end(duration, end_val, interval_val) do
+    %__MODULE__{op: :interval_duration_end, args: [duration, end_val, interval_val]}
+  end
+
+  @doc """
+  Builds an `IntervalRelation` — Allen's Interval Algebra: classifies
+  the relationship between two half-open intervals.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.interval_relation("v:Rel", "v:XS", "v:XE", "v:YS", "v:YE")
+      iex> q.op
+      :interval_relation
+
+  """
+  @spec interval_relation(value(), value(), value(), value(), value()) :: t()
+  def interval_relation(relation, x_start, x_end, y_start, y_end) do
+    %__MODULE__{op: :interval_relation, args: [relation, x_start, x_end, y_start, y_end]}
+  end
+
+  @doc """
+  Builds an `IntervalRelationTyped` — Allen's Interval Algebra on
+  `xdd:dateTimeInterval` values.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.interval_relation_typed("v:Rel", "v:X", "v:Y")
+      iex> q.op
+      :interval_relation_typed
+
+  """
+  @spec interval_relation_typed(value(), value(), value()) :: t()
+  def interval_relation_typed(relation, x, y) do
+    %__MODULE__{op: :interval_relation_typed, args: [relation, x, y]}
+  end
+
+  @doc """
+  Builds a `DateDuration` — tri-directional duration arithmetic for
+  dates/dateTimes (end-of-month preserving).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.date_duration("v:Start", "v:End", "v:Dur")
+      iex> q.op
+      :date_duration
+
+  """
+  @spec date_duration(value(), value(), value()) :: t()
+  def date_duration(start_val, end_val, duration) do
+    %__MODULE__{op: :date_duration, args: [start_val, end_val, duration]}
+  end
+
+  @doc """
+  Builds a `DayAfter` — computes the calendar day after the given date
+  (bidirectional).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.day_after("v:Date", "v:Next")
+      iex> q.op
+      :day_after
+
+  """
+  @spec day_after(value(), value()) :: t()
+  def day_after(date, next_date) do
+    %__MODULE__{op: :day_after, args: [date, next_date]}
+  end
+
+  @doc """
+  Builds a `DayBefore` — computes the calendar day before the given date
+  (bidirectional).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.day_before("v:Date", "v:Prev")
+      iex> q.op
+      :day_before
+
+  """
+  @spec day_before(value(), value()) :: t()
+  def day_before(date, previous) do
+    %__MODULE__{op: :day_before, args: [date, previous]}
+  end
+
+  @doc """
+  Builds a `Weekday` — computes ISO 8601 weekday number (Monday=1,
+  Sunday=7).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.weekday("v:Date", "v:Day")
+      iex> q.op
+      :weekday
+
+  """
+  @spec weekday(value(), value()) :: t()
+  def weekday(date, weekday_val) do
+    %__MODULE__{op: :weekday, args: [date, weekday_val]}
+  end
+
+  @doc """
+  Builds a `WeekdaySundayStart` — computes US-convention weekday
+  (Sunday=1, Saturday=7).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.weekday_sunday_start("v:Date", "v:Day")
+      iex> q.op
+      :weekday_sunday_start
+
+  """
+  @spec weekday_sunday_start(value(), value()) :: t()
+  def weekday_sunday_start(date, weekday_val) do
+    %__MODULE__{op: :weekday_sunday_start, args: [date, weekday_val]}
+  end
+
+  @doc """
+  Builds an `IsoWeek` — computes ISO 8601 week-numbering year and
+  week number.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.iso_week("v:Date", "v:Year", "v:Week")
+      iex> q.op
+      :iso_week
+
+  """
+  @spec iso_week(value(), value(), value()) :: t()
+  def iso_week(date, year, week) do
+    %__MODULE__{op: :iso_week, args: [date, year, week]}
+  end
+
+  @doc """
+  Builds a `MonthStartDate` — first day of the month for a given
+  `xsd:gYearMonth`.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.month_start_date("v:YM", "v:Date")
+      iex> q.op
+      :month_start_date
+
+  """
+  @spec month_start_date(value(), value()) :: t()
+  def month_start_date(year_month, date) do
+    %__MODULE__{op: :month_start_date, args: [year_month, date]}
+  end
+
+  @doc """
+  Builds a `MonthEndDate` — last day of the month for a given
+  `xsd:gYearMonth` (handles leap years).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.month_end_date("v:YM", "v:Date")
+      iex> q.op
+      :month_end_date
+
+  """
+  @spec month_end_date(value(), value()) :: t()
+  def month_end_date(year_month, date) do
+    %__MODULE__{op: :month_end_date, args: [year_month, date]}
+  end
+
+  @doc """
+  Builds a `MonthStartDates` — generator: every first-of-month date
+  in [start, end).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.month_start_dates("v:Date", "v:Start", "v:End")
+      iex> q.op
+      :month_start_dates
+
+  """
+  @spec month_start_dates(value(), value(), value()) :: t()
+  def month_start_dates(date, start_val, end_val) do
+    %__MODULE__{op: :month_start_dates, args: [date, start_val, end_val]}
+  end
+
+  @doc """
+  Builds a `MonthEndDates` — generator: every last-of-month date
+  in [start, end).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.month_end_dates("v:Date", "v:Start", "v:End")
+      iex> q.op
+      :month_end_dates
+
+  """
+  @spec month_end_dates(value(), value(), value()) :: t()
+  def month_end_dates(date, start_val, end_val) do
+    %__MODULE__{op: :month_end_dates, args: [date, start_val, end_val]}
+  end
+
+  @doc """
+  Builds an `InRange` — tests whether value falls within half-open
+  range [start, end).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.in_range("v:Val", 10, 100)
+      iex> q.op
+      :in_range
+
+  """
+  @spec in_range(value(), value(), value()) :: t()
+  def in_range(value, start_val, end_val) do
+    %__MODULE__{op: :in_range, args: [value, start_val, end_val]}
+  end
+
+  @doc """
+  Builds a `Sequence` — generates a sequence of values in half-open
+  [start, end) via backtracking. `step` and `count` are optional
+  (default `nil`).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.sequence("v:V", 1, 10)
+      iex> q.op
+      :sequence
+
+  """
+  @spec sequence(value(), value(), value(), value() | nil, value() | nil) :: t()
+  def sequence(value, start_val, end_val, step \\ nil, count \\ nil) do
+    %__MODULE__{op: :sequence, args: [value, start_val, end_val, step, count]}
+  end
+
+  @doc """
+  Builds a `RangeMin` — find minimum value in a list (any comparable
+  types).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.range_min("v:List", "v:Min")
+      iex> q.op
+      :range_min
+
+  """
+  @spec range_min(value(), value()) :: t()
+  def range_min(input_list, result) do
+    %__MODULE__{op: :range_min, args: [input_list, result]}
+  end
+
+  @doc """
+  Builds a `RangeMax` — find maximum value in a list (any comparable
+  types).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.range_max("v:List", "v:Max")
+      iex> q.op
+      :range_max
+
+  """
+  @spec range_max(value(), value()) :: t()
+  def range_max(input_list, result) do
+    %__MODULE__{op: :range_max, args: [input_list, result]}
+  end
+
+  # --------------------------------------------------------------------------
+  # CSV / IO
+  # --------------------------------------------------------------------------
+
+  @doc """
+  Builds a `Get` — reads a CSV/columns resource.
+
+  `as_vars` is a list of `Column` objects built by `woql_as/1`.
+  `query_resource` is built by `file/2`, `remote/2`, or `post/2`.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.get(TerminusDB.WOQL.woql_as([{"name", "v:Name"}]), TerminusDB.WOQL.file("data.csv"))
+      iex> q.op
+      :get
+
+  """
+  @spec get([map()], t()) :: t()
+  def get(as_vars, query_resource) do
+    %__MODULE__{op: :get, args: [as_vars, query_resource]}
+  end
+
+  @doc """
+  Builds a `Put` — writes an array of variables + optional column
+  names to a resource.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.put(TerminusDB.WOQL.woql_as([{"name", "v:Name"}]), TerminusDB.WOQL.triple("v:S", "p", "v:O"), TerminusDB.WOQL.file("out.csv"))
+      iex> q.op
+      :put
+
+  """
+  @spec put([map()], t(), t()) :: t()
+  def put(as_vars, query, query_resource) do
+    %__MODULE__{op: :put, args: [as_vars, query, query_resource]}
+  end
+
+  @doc """
+  Builds a list of `Column`/`Indicator` JSON-LD objects for use with
+  `get/2` and `put/3`.
+
+  Accepts a list of `{name_or_index, variable}` tuples.
+
+  ## Examples
+
+      iex> cols = TerminusDB.WOQL.woql_as([{"name", "v:Name"}, {0, "v:Idx"}])
+      iex> length(cols)
+      2
+      iex> hd(cols)["@type"]
+      "Column"
+
+  """
+  @spec woql_as([{String.t() | non_neg_integer(), woql_var()}]) :: [map()]
+  def woql_as(specs) when is_list(specs) do
+    Enum.map(specs, &build_as_column/1)
+  end
+
+  defp build_as_column({name, var}) when is_binary(name) do
+    var_name = if String.starts_with?(var, "v:"), do: String.slice(var, 2..-1//1), else: var
+
+    %{
+      "@type" => "Column",
+      "indicator" => %{"@type" => "Indicator", "name" => name},
+      "variable" => var_name
+    }
+  end
+
+  defp build_as_column({index, var}) when is_integer(index) do
+    var_name = if String.starts_with?(var, "v:"), do: String.slice(var, 2..-1//1), else: var
+
+    %{
+      "@type" => "Column",
+      "indicator" => %{"@type" => "Indicator", "index" => index},
+      "variable" => var_name
+    }
+  end
+
+  @doc """
+  Builds a `QueryResource` for a file source (CSV format by default).
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.file("data.csv")
+      iex> q.op
+      :file
+
+  """
+  @spec file(String.t(), keyword()) :: t()
+  def file(fpath, opts \\ []) do
+    %__MODULE__{op: :file, args: [fpath, opts[:format] || "csv"]}
+  end
+
+  @doc """
+  Builds a `QueryResource` for a remote URL data source.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.remote("https://example.com/data.csv")
+      iex> q.op
+      :remote
+
+  """
+  @spec remote(String.t(), keyword()) :: t()
+  def remote(uri, opts \\ []) do
+    %__MODULE__{op: :remote, args: [uri, opts[:format] || "csv"]}
+  end
+
+  @doc """
+  Builds a `QueryResource` for a file posted as part of the request.
+
+  ## Examples
+
+      iex> q = TerminusDB.WOQL.post("upload.csv")
+      iex> q.op
+      :post
+
+  """
+  @spec post(String.t(), keyword()) :: t()
+  def post(fpath, opts \\ []) do
+    %__MODULE__{op: :post, args: [fpath, opts[:format] || "csv"]}
+  end
+
+  # --------------------------------------------------------------------------
   # Serialization
   # --------------------------------------------------------------------------
 
@@ -1815,6 +2424,75 @@ defmodule TerminusDB.WOQL do
     case execute(config, query, opts) do
       {:ok, body} -> body
       {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Executes a WOQL query and returns a lazy `Stream` of binding maps.
+
+  The stream uses the PrefaceRecord/Binding/PostscriptRecord protocol for
+  incremental delivery. Each element is a `%{"@type" => "Binding", ...}` map.
+
+  ## Options
+
+  Same as `execute/3`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"@type" => "PrefaceRecord", "names" => ["Name"]}, %{"@type" => "Binding", "Name" => "Alice"}, %{"@type" => "PostscriptRecord"}])} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> q = TerminusDB.WOQL.select(["v:Name"], TerminusDB.WOQL.triple("v:P", "name", "v:Name"))
+      iex> {:ok, stream} = TerminusDB.WOQL.execute_stream(config, q)
+      iex> Enum.to_list(stream)
+      [%{"@type" => "Binding", "Name" => "Alice"}]
+
+  """
+  @spec execute_stream(Config.t(), t(), keyword()) ::
+          {:ok, Enumerable.t()} | {:error, Error.t()}
+  def execute_stream(config, %__MODULE__{} = query, opts \\ []) do
+    org = opts[:organization] || config.organization
+
+    case config.database do
+      nil ->
+        {:error, %Error{reason: :config, message: "no database scoped in config"}}
+
+      db ->
+        repo = opts[:repo] || config.repo
+        branch = opts[:branch] || config.branch
+        path = "woql/#{org}/#{db}/#{repo}/branch/#{branch}"
+
+        body =
+          %{"query" => to_jsonld(query), "streaming" => true}
+          |> Params.maybe_put("commit_info", build_commit_info(opts))
+          |> Params.maybe_put("all_witnesses", opts[:all_witnesses])
+
+        case Client.request_response(config, :post, path,
+               json: body,
+               decode_body: false,
+               area: :woql
+             ) do
+          {:ok, resp} ->
+            {:ok, woql_stream(resp)}
+
+          {:error, _} = error ->
+            error
+        end
+    end
+  end
+
+  defp woql_stream(resp) do
+    body = resp.body
+
+    if is_binary(body) do
+      body
+      |> String.split("\n", trim: true)
+      |> Enum.map(&Jason.decode!/1)
+      |> Enum.reject(&(&1["@type"] == "PrefaceRecord" or &1["@type"] == "PostscriptRecord"))
+      |> Stream.concat([])
+    else
+      Stream.reject(body, &(&1["@type"] == "PrefaceRecord" or &1["@type"] == "PostscriptRecord"))
     end
   end
 

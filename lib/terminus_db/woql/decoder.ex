@@ -411,6 +411,277 @@ defmodule TerminusDB.WOQL.Decoder do
     TerminusDB.WOQL.triple_count(graph, decode_value(count_var))
   end
 
+  def decode(%{"@type" => "TripleSlice", "graph" => graph} = m) do
+    TerminusDB.WOQL.quad_slice(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["low"]),
+      decode_value(m["high"]),
+      graph
+    )
+  end
+
+  def decode(%{"@type" => "TripleSlice"} = m) do
+    TerminusDB.WOQL.triple_slice(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["low"]),
+      decode_value(m["high"])
+    )
+  end
+
+  def decode(%{"@type" => "TripleSliceRev", "graph" => graph} = m) do
+    TerminusDB.WOQL.quad_slice_rev(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["low"]),
+      decode_value(m["high"]),
+      graph
+    )
+  end
+
+  def decode(%{"@type" => "TripleSliceRev"} = m) do
+    TerminusDB.WOQL.triple_slice_rev(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["low"]),
+      decode_value(m["high"])
+    )
+  end
+
+  def decode(%{"@type" => "TripleNext", "graph" => graph} = m) do
+    TerminusDB.WOQL.quad_next(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["next"]),
+      graph
+    )
+  end
+
+  def decode(%{"@type" => "TripleNext"} = m) do
+    TerminusDB.WOQL.triple_next(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["next"])
+    )
+  end
+
+  def decode(%{"@type" => "TriplePrevious", "graph" => graph} = m) do
+    TerminusDB.WOQL.quad_previous(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["previous"]),
+      graph
+    )
+  end
+
+  def decode(%{"@type" => "TriplePrevious"} = m) do
+    TerminusDB.WOQL.triple_previous(
+      decode_node(m["subject"]),
+      decode_node(m["predicate"]),
+      decode_value(m["object"]),
+      decode_value(m["previous"])
+    )
+  end
+
+  # --------------------------------------------------------------------------
+  # Temporal / Allen interval algebra
+  # --------------------------------------------------------------------------
+
+  def decode(%{"@type" => "Interval"} = m) do
+    TerminusDB.WOQL.interval(
+      decode_value(m["start"]),
+      decode_value(m["end"]),
+      decode_value(m["interval"])
+    )
+  end
+
+  def decode(%{"@type" => "IntervalStartDuration"} = m) do
+    TerminusDB.WOQL.interval_start_duration(
+      decode_value(m["start"]),
+      decode_value(m["duration"]),
+      decode_value(m["interval"])
+    )
+  end
+
+  def decode(%{"@type" => "IntervalDurationEnd"} = m) do
+    TerminusDB.WOQL.interval_duration_end(
+      decode_value(m["duration"]),
+      decode_value(m["end"]),
+      decode_value(m["interval"])
+    )
+  end
+
+  def decode(%{"@type" => "IntervalRelation"} = m) do
+    TerminusDB.WOQL.interval_relation(
+      decode_value(m["relation"]),
+      decode_value(m["start"]),
+      decode_value(m["end"]),
+      decode_value(m["start2"]),
+      decode_value(m["end2"])
+    )
+  end
+
+  def decode(%{"@type" => "IntervalRelationTyped"} = m) do
+    TerminusDB.WOQL.interval_relation_typed(
+      decode_value(m["relation"]),
+      decode_value(m["left"]),
+      decode_value(m["right"])
+    )
+  end
+
+  def decode(%{"@type" => "DateDuration"} = m) do
+    TerminusDB.WOQL.date_duration(
+      decode_value(m["start"]),
+      decode_value(m["end"]),
+      decode_value(m["duration"])
+    )
+  end
+
+  def decode(%{"@type" => "DayAfter"} = m) do
+    TerminusDB.WOQL.day_after(
+      decode_value(m["date"]),
+      decode_value(m["next"])
+    )
+  end
+
+  def decode(%{"@type" => "DayBefore"} = m) do
+    TerminusDB.WOQL.day_before(
+      decode_value(m["date"]),
+      decode_value(m["previous"])
+    )
+  end
+
+  def decode(%{"@type" => "Weekday"} = m) do
+    TerminusDB.WOQL.weekday(
+      decode_value(m["date"]),
+      decode_value(m["weekday"])
+    )
+  end
+
+  def decode(%{"@type" => "WeekdaySundayStart"} = m) do
+    TerminusDB.WOQL.weekday_sunday_start(
+      decode_value(m["date"]),
+      decode_value(m["weekday"])
+    )
+  end
+
+  def decode(%{"@type" => "IsoWeek"} = m) do
+    TerminusDB.WOQL.iso_week(
+      decode_value(m["date"]),
+      decode_value(m["year"]),
+      decode_value(m["week"])
+    )
+  end
+
+  def decode(%{"@type" => "MonthStartDate"} = m) do
+    TerminusDB.WOQL.month_start_date(
+      decode_value(m["year_month"]),
+      decode_value(m["date"])
+    )
+  end
+
+  def decode(%{"@type" => "MonthEndDate"} = m) do
+    TerminusDB.WOQL.month_end_date(
+      decode_value(m["year_month"]),
+      decode_value(m["date"])
+    )
+  end
+
+  def decode(%{"@type" => "MonthStartDates"} = m) do
+    TerminusDB.WOQL.month_start_dates(
+      decode_value(m["date"]),
+      decode_value(m["start"]),
+      decode_value(m["end"])
+    )
+  end
+
+  def decode(%{"@type" => "MonthEndDates"} = m) do
+    TerminusDB.WOQL.month_end_dates(
+      decode_value(m["date"]),
+      decode_value(m["start"]),
+      decode_value(m["end"])
+    )
+  end
+
+  def decode(%{"@type" => "InRange"} = m) do
+    TerminusDB.WOQL.in_range(
+      decode_value(m["value"]),
+      decode_value(m["start"]),
+      decode_value(m["end"])
+    )
+  end
+
+  def decode(%{"@type" => "Sequence"} = m) do
+    step = if m["step"], do: decode_value(m["step"]), else: nil
+    count = if m["count"], do: decode_value(m["count"]), else: nil
+
+    TerminusDB.WOQL.sequence(
+      decode_value(m["value"]),
+      decode_value(m["start"]),
+      decode_value(m["end"]),
+      step,
+      count
+    )
+  end
+
+  def decode(%{"@type" => "RangeMin"} = m) do
+    TerminusDB.WOQL.range_min(
+      decode_value(m["list"]),
+      decode_value(m["min"])
+    )
+  end
+
+  def decode(%{"@type" => "RangeMax"} = m) do
+    TerminusDB.WOQL.range_max(
+      decode_value(m["list"]),
+      decode_value(m["max"])
+    )
+  end
+
+  # --------------------------------------------------------------------------
+  # CSV / IO
+  # --------------------------------------------------------------------------
+
+  def decode(%{"@type" => "Get"} = m) do
+    TerminusDB.WOQL.get(m["columns"], decode(m["resource"]))
+  end
+
+  def decode(%{"@type" => "Put"} = m) do
+    TerminusDB.WOQL.put(m["columns"], decode(m["query"]), decode(m["resource"]))
+  end
+
+  def decode(%{"@type" => "QueryResource"} = m) do
+    source = m["source"]
+
+    case source["@type"] do
+      "FileResource" ->
+        format = decode_format(m["format"])
+        TerminusDB.WOQL.file(source["file_name"], format: format)
+
+      "RemoteResource" ->
+        format = decode_format(m["format"])
+        TerminusDB.WOQL.remote(source["url"], format: format)
+
+      "PostResource" ->
+        format = decode_format(m["format"])
+        TerminusDB.WOQL.post(source["file_name"], format: format)
+
+      _ ->
+        TerminusDB.WOQL.file(source["file_name"] || "", format: decode_format(m["format"]))
+    end
+  end
+
+  defp decode_format(%{"format_type" => %{"@value" => format}}), do: format
+  defp decode_format(_), do: "csv"
+
   # --------------------------------------------------------------------------
   # NodeValue decoder
   # --------------------------------------------------------------------------
