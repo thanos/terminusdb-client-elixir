@@ -11,14 +11,6 @@ graph database with built-in version control. It is built on
 [Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
 making it safe for concurrent use.
 
-> **Status:** v0.3.2. `Config`, `Error`, `Telemetry`, `Client`, `Database`,
-> `Document` (with streaming), `Schema`, `Branch`, `Commit`, `Diff`, `Merge`,
-> `Patch`, `Prefix`, `Triples`, `Remote`, `GraphQL`, and `WOQL` (v0.2 DSL —
-> ~100 operators including temporal/Allen, CSV/IO, range queries, RDF list
-> library) are implemented and tested. Ecto and ExDatalog integrations are
-> planned for later milestones. See `ARCHITECTURE.md` and `AGENTS.md` for
-> the roadmap.
-
 ## Installation
 
 Add `terminusdb_client` to your dependencies in `mix.exs`:
@@ -185,8 +177,35 @@ mix test --only integration
 docker compose down
 ```
 
-See `AGENTS.md` for the full operating guide and `ARCHITECTURE.md` + `docs/adr/` for
-the design.
+## Roadmap
+
+| Milestone | Scope | Status |
+| --- | --- | --- |
+| **v0.1.0** | Config, Error, Telemetry, Client, Database API | Done |
+| **v0.2.0** | Document CRUD + streaming, Schema, Branch, guides | Done |
+| **v0.3.0** | Commit, Diff, Merge, WOQL DSL v0.1, TerminusDB 12 compat | Done |
+| **v0.3.1** | WOQL DSL v0.2 (~70 operators, 4-wrapper value model, path DSL) | Done |
+| **v0.3.2** | GraphQL, temporal/Allen (19 ops), RDF list (17 fns), CSV/IO (6 ops), range queries (8 ops), prefix mgmt, patch/apply, triples, remote, WOQL streaming, benchmarks, tutorials | Done |
+| **v0.4.0** | Ecto schema definition (`TerminusDB.Schema` macro), access control (RBAC), Explorer DataFrame integration | Pending |
+| **v0.5.0** | ExDatalog bridge (`TerminusDB.Datalog`) | Pending |
+
+### Parity with the Python client
+
+Full gap analysis: see `docs/gap-analysis.md` in the repository.
+
+| Area | Elixir | Python | Notes |
+| --- | --- | --- | --- |
+| WOQL operators | 108 | 108 | Full parity |
+| RDF list library | 17 fns | 17 fns | Full parity |
+| GraphQL | 3 methods | None | Elixir advantage |
+| Telemetry | Every op | None | Elixir advantage |
+| Schema definition | Read-only frames | Full `DocumentTemplate` metaclass | v0.4 (Ecto) |
+| DataFrame | None | pandas `WOQLDataFrame` | v0.4+ (Explorer) |
+| Access control | None | 16 methods (orgs/users/roles) | v0.4+ |
+| Property tests | 9 (StreamData) | None | Elixir advantage |
+| ADRs | 13 | None | Elixir advantage |
+
+See `docs/adr/` for architectural decisions behind each milestone.
 
 ## License
 Licensed under the Apache License, Version 2.0.
