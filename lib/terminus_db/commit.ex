@@ -38,6 +38,14 @@ defmodule TerminusDB.Commit do
           | {:limit, pos_integer()}
           | {:count, pos_integer()}
 
+  @type history_opt ::
+          {:id, String.t()}
+          | {:start, non_neg_integer()}
+          | {:count, pos_integer()}
+          | {:created, boolean()}
+          | {:updated, boolean()}
+          | {:organization, String.t()}
+
   defp commit_path(config, opts, resource) do
     org = opts[:organization] || config.organization
     db = config.database || raise Error, reason: :http, message: "no database scoped in config"
@@ -219,4 +227,72 @@ defmodule TerminusDB.Commit do
       {:error, error} -> raise error
     end
   end
+
+  @doc """
+  Retrieves the commit history for a specific document.
+
+  Returns the history of changes made to a document, ordered backwards in
+  time from the most recent change.
+
+  ## Options
+
+  - `:id` (required) - the document ID (IRI) to retrieve history for.
+  - `:start` - starting index for pagination (default `0`).
+  - `:count` - maximum number of entries (default `10`).
+  - `:created` - if `true`, return only the creation time.
+  - `:updated` - if `true`, return only the last update time.
+  - `:organization` - overrides `config.organization`.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"author" => "admin", "identifier" => "abc", "message" => "Created"}])} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> {:ok, history} = TerminusDB.Commit.document_history(config, id: "Person/Alice", count: 5)
+      iex> length(history)
+      1
+
+  """
+  @spec document_history(Config.t(), [history_opt()]) ::
+          {:ok, [map()]} | {:error, Error.t()}
+  def document_history(config, opts \\ []) do
+    org = opts[:organization] || config.organization
+    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
+
+    params =
+      [
+        id: Keyword.fetch!(opts, :id),
+        start: opts[:start] || 0,
+        count: opts[:count] || 10
+      ]
+      |> maybe_add_flag(:created, opts[:created])
+      |> maybe_add_flag(:updated, opts[:updated])
+
+    Client.request(config, :get, "history/#{org}/#{db}", params: params, area: :commit)
+  end
+
+  @doc """
+  Retrieves document commit history, or raises.
+
+  ## Examples
+
+      iex> config = TerminusDB.Config.new(
+      ...>   endpoint: "http://localhost:6363",
+      ...>   adapter: fn req -> {req, Req.Response.new(status: 200, body: [%{"author" => "admin"}])} end
+      ...> ) |> TerminusDB.Config.with_database("mydb")
+      iex> TerminusDB.Commit.document_history!(config, id: "Person/Alice")
+      [%{"author" => "admin"}]
+
+  """
+  @spec document_history!(Config.t(), [history_opt()]) :: [map()]
+  def document_history!(config, opts \\ []) do
+    case document_history(config, opts) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
+
+  defp maybe_add_flag(params, _key, nil), do: params
+  defp maybe_add_flag(params, key, value), do: Keyword.put(params, key, value)
 end

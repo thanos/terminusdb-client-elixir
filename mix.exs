@@ -1,13 +1,13 @@
 defmodule TerminusDB.MixProject do
   use Mix.Project
 
-  @version "0.3.1"
+  @version "0.3.2"
   @source_url "https://github.com/thanos/terminusdb-client-elixir"
   @description """
-  An idiomatic Elixir client for TerminusDB, the version-controlled document graph
-  database. Features DB management, document CRUD with streaming, schema frames,
-  branching, commit history, diff/merge, a WOQL query DSL, a Req-based HTTP client,
-  immutable configs, typed errors, and telemetry.
+  An idiomatic Elixir client for TerminusDB, the version-controlled document
+  graph database. Features DB management, document CRUD with streaming, schema
+  frames, branching, diff/merge, a ~100-operator WOQL DSL, GraphQL, and
+  telemetry. Built on Req with immutable configs and typed errors.
   """
 
   def project do
@@ -67,7 +67,9 @@ defmodule TerminusDB.MixProject do
       {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:sobelow, "~> 0.13", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
-      {:stream_data, "~> 1.1", only: [:test, :dev]}
+      {:stream_data, "~> 1.1", only: [:test, :dev]},
+      {:benchee, "~> 1.3", only: :dev, runtime: false},
+      {:benchee_html, "~> 1.0", only: :dev, runtime: false}
     ]
   end
 
@@ -113,12 +115,26 @@ defmodule TerminusDB.MixProject do
         {"guides/introduction.md", [title: "Introduction to TerminusDB"]},
         {"guides/migrating-from-sql.md", [title: "Migrating from SQL"]},
         {"guides/overview.md", [title: "Overview Guide"]},
+        {"guides/graphql-guide.md", [title: "GraphQL Guide"]},
+        {"guides/temporal-allen-guide.md", [title: "Temporal & Allen Interval Algebra"]},
+        {"guides/csv-import-guide.md", [title: "CSV Import / Export"]},
+        {"guides/rdf-list-guide.md", [title: "RDF List Library"]},
+        {"guides/terminusdb_ex_livebook.livemd", [title: "Livebook Demo"]},
         {"CHANGELOG.md", [title: "Changelog"]},
         {"ARCHITECTURE.md", [title: "Architecture"]},
         {"LICENSE", [title: "License"]}
       ],
       groups_for_extras: [
-        Guides: ["guides/introduction.md", "guides/migrating-from-sql.md", "guides/overview.md"],
+        Guides: [
+          "guides/introduction.md",
+          "guides/migrating-from-sql.md",
+          "guides/overview.md",
+          "guides/graphql-guide.md",
+          "guides/temporal-allen-guide.md",
+          "guides/csv-import-guide.md",
+          "guides/rdf-list-guide.md",
+          "guides/terminusdb_ex_livebook.livemd"
+        ],
         Architecture: ["ARCHITECTURE.md"]
       ],
       source_ref: "v#{@version}",

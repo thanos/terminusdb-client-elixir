@@ -134,4 +134,45 @@ defmodule TerminusDB.BranchTest do
       assert_raise Error, fn -> Branch.exists?(db_config(adapter), "feature") end
     end
   end
+
+  describe "squash/2" do
+    test "POSTs to squash endpoint with commit_info" do
+      test = self()
+      adapter = capture(test, ok(%{"api:status" => "api:success", "api:commit" => "abc"}))
+
+      assert {:ok, resp} = Branch.squash(db_config(adapter), author: "admin", message: "squash")
+      assert resp["api:commit"] == "abc"
+
+      req = last_request()
+      assert req.method == :post
+      assert req.url.path == "/api/squash/admin/mydb/local/branch/main"
+    end
+
+    test "squash! returns response or raises" do
+      adapter = fn req -> {req, Req.Response.new(status: 200, body: %{"api:commit" => "abc"})} end
+      assert Branch.squash!(db_config(adapter))["api:commit"] == "abc"
+    end
+  end
+
+  describe "reset/3" do
+    test "POSTs to reset endpoint with commit_descriptor" do
+      test = self()
+      adapter = capture(test, ok(%{"api:status" => "api:success"}))
+
+      assert {:ok, resp} = Branch.reset(db_config(adapter), "admin/mydb/local/commit/abc")
+      assert resp["api:status"] == "api:success"
+
+      req = last_request()
+      assert req.method == :post
+      assert req.url.path == "/api/reset/admin/mydb/local/branch/main"
+    end
+
+    test "reset! returns response or raises" do
+      adapter = fn req ->
+        {req, Req.Response.new(status: 200, body: %{"api:status" => "api:success"})}
+      end
+
+      assert Branch.reset!(db_config(adapter), "commit/abc")["api:status"] == "api:success"
+    end
+  end
 end

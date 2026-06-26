@@ -11,11 +11,13 @@ graph database with built-in version control. It is built on
 [Req](https://hexdocs.pm/req) and treats connection context as **immutable data**,
 making it safe for concurrent use.
 
-> **Status:** v0.3.1. `Config`, `Error`, `Telemetry`, `Client`, `Database`,
+> **Status:** v0.3.2. `Config`, `Error`, `Telemetry`, `Client`, `Database`,
 > `Document` (with streaming), `Schema`, `Branch`, `Commit`, `Diff`, `Merge`,
-> and `WOQL` (v0.2 DSL — ~70 operators) are implemented and tested. GraphQL,
-> Ecto, and ExDatalog integrations are planned for later milestones. See
-> `ARCHITECTURE.md` and `AGENTS.md` for the roadmap.
+> `Patch`, `Prefix`, `Triples`, `Remote`, `GraphQL`, and `WOQL` (v0.2 DSL —
+> ~100 operators including temporal/Allen, CSV/IO, range queries, RDF list
+> library) are implemented and tested. Ecto and ExDatalog integrations are
+> planned for later milestones. See `ARCHITECTURE.md` and `AGENTS.md` for
+> the roadmap.
 
 ## Installation
 
@@ -24,7 +26,7 @@ Add `terminusdb_client` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:terminusdb_client, "~> 0.3.1"}
+    {:terminusdb_client, "~> 0.3.2"}
   ]
 end
 ```
@@ -90,6 +92,49 @@ TerminusDB.Document.stream(config, type: "Person")
 {:ok, _} = TerminusDB.Database.delete(config, "mydb")
 ```
 
+## GraphQL
+
+TerminusDB auto-generates a GraphQL endpoint from your document schema.
+Query and mutate using raw GraphQL strings:
+
+```elixir
+# Query all Person documents
+{:ok, result} = TerminusDB.GraphQL.query(config, "{ Person { name age } }")
+# => {:ok, %{data: %{"Person" => [%{"name" => "Alice", "age" => 30}]}, errors: nil}}
+
+# Insert via mutation
+{:ok, _} = TerminusDB.GraphQL.mutate(config, "mutation { _insertDocuments(json: \"...\") }")
+
+# Introspect the auto-generated schema
+{:ok, schema} = TerminusDB.GraphQL.introspect(config)
+```
+
+## WOQL queries
+
+The WOQL DSL provides ~100 composable operators for graph queries:
+
+```elixir
+import TerminusDB.WOQL
+
+# Query with select, triple pattern, and limit
+{:ok, result} =
+  WOQL.execute(config,
+    select(["v:Name", "v:Age"],
+      limit(10,
+        and_([
+          triple("v:Person", "name", "v:Name"),
+          triple("v:Person", "age", "v:Age"),
+          triple("v:Person", "rdf:type", iri("@schema:Person"))
+        ])
+      )
+    )
+  )
+
+# Stream WOQL results (lazy, constant memory)
+{:ok, stream} = WOQL.execute_stream(config, query)
+Enum.to_list(stream)
+```
+
 All public functions return `{:ok, result}` or `{:error, %TerminusDB.Error{}}`. Each
 `!/1`-suffixed variant raises `TerminusDB.Error` instead.
 
@@ -104,7 +149,8 @@ config = TerminusDB.Config.new(endpoint: "http://localhost:6363", token: "tok_ab
 ## Telemetry
 
 Every operation emits `[:terminusdb, <area>, :start]` and `[:stop]` events
-(`<area>` is `:database`, `:document`, `:query`, `:branch`, `:merge`, `:diff`, or
+(`<area>` is `:database`, `:document`, `:query`, `:branch`, `:merge`, `:diff`,
+`:commit`, `:woql`, `:graphql`, `:prefix`, `:triples`, `:remote`, or
 `:connection`). Attach with `:telemetry.attach_many/4`. See `TerminusDB.Telemetry`
 and ADR-0005.
 

@@ -490,8 +490,8 @@ WOQL.path("v:S", WOQL.Path.path_star(WOQL.Path.path_pred("friend")), "v:O")
 | Function | WOQL type | Description |
 | --- | --- | --- |
 | `read_document/2` | `ReadDocument` | Read document by ID |
-| `insert_document/1` | `InsertDocument` | Insert document |
-| `update_document/1` | `UpdateDocument` | Update document |
+| `insert_document/2` | `InsertDocument` | Insert document (optional identifier) |
+| `update_document/2` | `UpdateDocument` | Update document (optional identifier) |
 | `delete_document/1` | `DeleteDocument` | Delete document |
 
 #### Literal helpers

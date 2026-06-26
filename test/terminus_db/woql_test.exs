@@ -1641,6 +1641,349 @@ defmodule TerminusDB.WOQLTest do
     end
   end
 
+  describe "range queries" do
+    test "triple_slice/5 encodes as TripleSlice" do
+      jsonld = WOQL.to_jsonld(WOQL.triple_slice("v:S", "v:P", "v:O", 10, 100))
+      assert jsonld["@type"] == "TripleSlice"
+      assert jsonld["subject"] == %{"@type" => "NodeValue", "variable" => "S"}
+
+      assert jsonld["low"] == %{
+               "@type" => "Value",
+               "data" => %{"@type" => "xsd:integer", "@value" => 10}
+             }
+
+      assert jsonld["high"] == %{
+               "@type" => "Value",
+               "data" => %{"@type" => "xsd:integer", "@value" => 100}
+             }
+
+      refute Map.has_key?(jsonld, "graph")
+    end
+
+    test "quad_slice/6 encodes as TripleSlice with graph" do
+      jsonld = WOQL.to_jsonld(WOQL.quad_slice("v:S", "v:P", "v:O", 10, 100, "instance"))
+      assert jsonld["@type"] == "TripleSlice"
+      assert jsonld["graph"] == "instance"
+    end
+
+    test "triple_slice_rev/5 encodes as TripleSliceRev" do
+      jsonld = WOQL.to_jsonld(WOQL.triple_slice_rev("v:S", "v:P", "v:O", 10, 100))
+      assert jsonld["@type"] == "TripleSliceRev"
+      refute Map.has_key?(jsonld, "graph")
+    end
+
+    test "quad_slice_rev/6 encodes as TripleSliceRev with graph" do
+      jsonld = WOQL.to_jsonld(WOQL.quad_slice_rev("v:S", "v:P", "v:O", 10, 100, "instance"))
+      assert jsonld["@type"] == "TripleSliceRev"
+      assert jsonld["graph"] == "instance"
+    end
+
+    test "triple_next/4 encodes as TripleNext" do
+      jsonld = WOQL.to_jsonld(WOQL.triple_next("v:S", "v:P", "v:O", "v:Next"))
+      assert jsonld["@type"] == "TripleNext"
+      assert jsonld["next"] == %{"@type" => "Value", "variable" => "Next"}
+      refute Map.has_key?(jsonld, "graph")
+    end
+
+    test "quad_next/5 encodes as TripleNext with graph" do
+      jsonld = WOQL.to_jsonld(WOQL.quad_next("v:S", "v:P", "v:O", "v:Next", "instance"))
+      assert jsonld["@type"] == "TripleNext"
+      assert jsonld["graph"] == "instance"
+    end
+
+    test "triple_previous/4 encodes as TriplePrevious" do
+      jsonld = WOQL.to_jsonld(WOQL.triple_previous("v:S", "v:P", "v:O", "v:Prev"))
+      assert jsonld["@type"] == "TriplePrevious"
+      assert jsonld["previous"] == %{"@type" => "Value", "variable" => "Prev"}
+      refute Map.has_key?(jsonld, "graph")
+    end
+
+    test "quad_previous/5 encodes as TriplePrevious with graph" do
+      jsonld = WOQL.to_jsonld(WOQL.quad_previous("v:S", "v:P", "v:O", "v:Prev", "instance"))
+      assert jsonld["@type"] == "TriplePrevious"
+      assert jsonld["graph"] == "instance"
+    end
+
+    test "round-trips triple_slice" do
+      q = WOQL.triple_slice("v:S", "v:P", "v:O", 10, 100)
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips quad_slice" do
+      q = WOQL.quad_slice("v:S", "v:P", "v:O", 10, 100, "instance")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips triple_slice_rev" do
+      q = WOQL.triple_slice_rev("v:S", "v:P", "v:O", 10, 100)
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips quad_slice_rev" do
+      q = WOQL.quad_slice_rev("v:S", "v:P", "v:O", 10, 100, "instance")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips triple_next" do
+      q = WOQL.triple_next("v:S", "v:P", "v:O", "v:Next")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips quad_next" do
+      q = WOQL.quad_next("v:S", "v:P", "v:O", "v:Next", "instance")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips triple_previous" do
+      q = WOQL.triple_previous("v:S", "v:P", "v:O", "v:Prev")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips quad_previous" do
+      q = WOQL.quad_previous("v:S", "v:P", "v:O", "v:Prev", "instance")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+  end
+
+  describe "temporal / Allen interval algebra" do
+    test "interval/3 encodes as Interval" do
+      jsonld = WOQL.to_jsonld(WOQL.interval("v:S", "v:E", "v:I"))
+      assert jsonld["@type"] == "Interval"
+      assert jsonld["start"] == %{"@type" => "Value", "variable" => "S"}
+    end
+
+    test "interval_relation/5 encodes as IntervalRelation" do
+      jsonld = WOQL.to_jsonld(WOQL.interval_relation("v:R", "v:XS", "v:XE", "v:YS", "v:YE"))
+      assert jsonld["@type"] == "IntervalRelation"
+      assert jsonld["start2"] == %{"@type" => "Value", "variable" => "YS"}
+    end
+
+    test "date_duration/3 encodes as DateDuration" do
+      jsonld = WOQL.to_jsonld(WOQL.date_duration("v:S", "v:E", "v:D"))
+      assert jsonld["@type"] == "DateDuration"
+    end
+
+    test "day_after/2 encodes as DayAfter" do
+      jsonld = WOQL.to_jsonld(WOQL.day_after("v:D", "v:N"))
+      assert jsonld["@type"] == "DayAfter"
+    end
+
+    test "weekday/2 encodes as Weekday" do
+      jsonld = WOQL.to_jsonld(WOQL.weekday("v:D", "v:W"))
+      assert jsonld["@type"] == "Weekday"
+    end
+
+    test "iso_week/3 encodes as IsoWeek" do
+      jsonld = WOQL.to_jsonld(WOQL.iso_week("v:D", "v:Y", "v:W"))
+      assert jsonld["@type"] == "IsoWeek"
+    end
+
+    test "in_range/3 encodes as InRange" do
+      jsonld = WOQL.to_jsonld(WOQL.in_range("v:V", 10, 100))
+      assert jsonld["@type"] == "InRange"
+      assert jsonld["start"]["data"]["@value"] == 10
+    end
+
+    test "sequence/5 with step and count encodes both" do
+      jsonld = WOQL.to_jsonld(WOQL.sequence("v:V", 1, 10, 2, 5))
+      assert jsonld["@type"] == "Sequence"
+      assert jsonld["step"]["data"]["@value"] == 2
+      assert jsonld["count"]["data"]["@value"] == 5
+    end
+
+    test "sequence/3 without step and count omits them" do
+      jsonld = WOQL.to_jsonld(WOQL.sequence("v:V", 1, 10))
+      assert jsonld["@type"] == "Sequence"
+      refute Map.has_key?(jsonld, "step")
+      refute Map.has_key?(jsonld, "count")
+    end
+
+    test "range_min/2 encodes as RangeMin" do
+      jsonld = WOQL.to_jsonld(WOQL.range_min("v:L", "v:Min"))
+      assert jsonld["@type"] == "RangeMin"
+    end
+
+    test "range_max/2 encodes as RangeMax" do
+      jsonld = WOQL.to_jsonld(WOQL.range_max("v:L", "v:Max"))
+      assert jsonld["@type"] == "RangeMax"
+    end
+
+    test "round-trips interval" do
+      q = WOQL.interval("v:S", "v:E", "v:I")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_relation" do
+      q = WOQL.interval_relation("v:R", "v:XS", "v:XE", "v:YS", "v:YE")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips date_duration" do
+      q = WOQL.date_duration("v:S", "v:E", "v:D")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips day_after" do
+      q = WOQL.day_after("v:D", "v:N")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips day_before" do
+      q = WOQL.day_before("v:D", "v:P")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips weekday" do
+      q = WOQL.weekday("v:D", "v:W")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips weekday_sunday_start" do
+      q = WOQL.weekday_sunday_start("v:D", "v:W")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips iso_week" do
+      q = WOQL.iso_week("v:D", "v:Y", "v:W")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips month_start_date" do
+      q = WOQL.month_start_date("v:YM", "v:D")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips month_end_date" do
+      q = WOQL.month_end_date("v:YM", "v:D")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips month_start_dates" do
+      q = WOQL.month_start_dates("v:D", "v:S", "v:E")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips month_end_dates" do
+      q = WOQL.month_end_dates("v:D", "v:S", "v:E")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips in_range" do
+      q = WOQL.in_range("v:V", 10, 100)
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips sequence without step/count" do
+      q = WOQL.sequence("v:V", 1, 10)
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips sequence with step and count" do
+      q = WOQL.sequence("v:V", 1, 10, 2, 5)
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips range_min" do
+      q = WOQL.range_min("v:L", "v:Min")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips range_max" do
+      q = WOQL.range_max("v:L", "v:Max")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_start_duration" do
+      q = WOQL.interval_start_duration("v:S", "v:D", "v:I")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_duration_end" do
+      q = WOQL.interval_duration_end("v:D", "v:E", "v:I")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_relation_typed" do
+      q = WOQL.interval_relation_typed("v:R", "v:X", "v:Y")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+  end
+
+  describe "CSV / IO" do
+    test "woql_as/1 builds Column objects with name indicator" do
+      cols = WOQL.woql_as([{"name", "v:Name"}])
+      [col] = cols
+      assert col["@type"] == "Column"
+      assert col["indicator"] == %{"@type" => "Indicator", "name" => "name"}
+      assert col["variable"] == "Name"
+    end
+
+    test "woql_as/1 builds Column objects with index indicator" do
+      cols = WOQL.woql_as([{0, "v:Idx"}])
+      [col] = cols
+      assert col["indicator"] == %{"@type" => "Indicator", "index" => 0}
+    end
+
+    test "get/2 encodes as Get" do
+      cols = WOQL.woql_as([{"name", "v:Name"}])
+      jsonld = WOQL.to_jsonld(WOQL.get(cols, WOQL.file("data.csv")))
+      assert jsonld["@type"] == "Get"
+      assert jsonld["columns"] == cols
+      assert jsonld["resource"]["@type"] == "QueryResource"
+    end
+
+    test "put/3 encodes as Put" do
+      cols = WOQL.woql_as([{"name", "v:Name"}])
+
+      jsonld =
+        WOQL.to_jsonld(WOQL.put(cols, WOQL.triple("v:S", "p", "v:O"), WOQL.file("out.csv")))
+
+      assert jsonld["@type"] == "Put"
+      assert jsonld["query"]["@type"] == "Triple"
+    end
+
+    test "file/2 encodes as QueryResource with FileResource" do
+      jsonld = WOQL.to_jsonld(WOQL.file("data.csv"))
+      assert jsonld["@type"] == "QueryResource"
+      assert jsonld["source"] == %{"@type" => "FileResource", "file_name" => "data.csv"}
+      assert jsonld["format"]["format_type"]["@value"] == "csv"
+    end
+
+    test "remote/2 encodes as QueryResource with RemoteResource" do
+      jsonld = WOQL.to_jsonld(WOQL.remote("https://example.com/data.csv"))
+
+      assert jsonld["source"] == %{
+               "@type" => "RemoteResource",
+               "url" => "https://example.com/data.csv"
+             }
+    end
+
+    test "post/2 encodes as QueryResource with PostResource" do
+      jsonld = WOQL.to_jsonld(WOQL.post("upload.csv"))
+      assert jsonld["source"] == %{"@type" => "PostResource", "file_name" => "upload.csv"}
+    end
+
+    test "file/2 with custom format" do
+      jsonld = WOQL.to_jsonld(WOQL.file("data.json", format: "json"))
+      assert jsonld["format"]["format_type"]["@value"] == "json"
+    end
+
+    test "round-trips file" do
+      q = WOQL.file("data.csv")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips remote" do
+      q = WOQL.remote("https://example.com/data.csv")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips post" do
+      q = WOQL.post("upload.csv")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+  end
+
   describe "round-trip: to_jsonld ∘ from_jsonld" do
     test "round-trips a triple" do
       q = WOQL.triple("v:Person", "name", "v:Name")
@@ -1679,6 +2022,63 @@ defmodule TerminusDB.WOQLTest do
 
     test "round-trips a triple with constant node object" do
       q = WOQL.triple("v:Person", "rdf:type", "@schema:Person")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips a get (CSV) query" do
+      cols = WOQL.woql_as([{"name", "v:Name"}])
+      q = WOQL.get(cols, WOQL.file("data.csv"))
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips a put (CSV) query" do
+      cols = WOQL.woql_as([{"name", "v:Name"}])
+      q = WOQL.put(cols, WOQL.triple("v:S", "p", "v:O"), WOQL.file("out.csv"))
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips a remote resource" do
+      q = WOQL.remote("https://example.com/data.csv", format: "json")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips a post resource" do
+      q = WOQL.post("upload.csv", format: "json")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_start_duration" do
+      q = WOQL.interval_start_duration("v:S", "v:D", "v:I")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_duration_end" do
+      q = WOQL.interval_duration_end("v:D", "v:E", "v:I")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips interval_relation_typed" do
+      q = WOQL.interval_relation_typed("v:R", "v:X", "v:Y")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips day_before" do
+      q = WOQL.day_before("v:D", "v:P")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips weekday_sunday_start" do
+      q = WOQL.weekday_sunday_start("v:D", "v:W")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips month_start_date" do
+      q = WOQL.month_start_date("v:YM", "v:D")
+      assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
+    end
+
+    test "round-trips month_end_date" do
+      q = WOQL.month_end_date("v:YM", "v:D")
       assert WOQL.from_jsonld(WOQL.to_jsonld(q)) == q
     end
   end

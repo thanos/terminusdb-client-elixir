@@ -1,10 +1,8 @@
-<!-- livebook:{"attrs":[],"chunks":[],"on":[{"tag":"activate","_id":null}],"persisted":true} -->
-
 # terminusdb_ex Livebook Demo
 
 ```elixir
 Mix.install([
-  {:terminusdb_client, "~> 0.1.0"}
+  {:terminusdb_client, "~> 0.3.2"}
 ])
 ```
 
@@ -33,7 +31,7 @@ end
 ## 1. Configuration
 
 ```elixir
-alias TerminusDB.{Config, Database, Document, Schema, Branch, Client, Error}
+alias TerminusDB.{Config, Database, Document, Schema, Branch, Client}
 
 config = Config.new(endpoint: endpoint)
 ```
@@ -64,11 +62,16 @@ Config.redact(config)
 
 ```elixir
 # Create a database with a schema graph
-{:ok, _} = Database.create(config, "livebook_demo",
-  label: "Livebook Demo",
-  comment: "A database for the livebook walkthrough",
-  schema: true
-)
+if Database.exists?(config, "livebook_demo") do
+  {:ok, _} = Database.delete(config, "livebook_demo", force: true)
+end
+
+{:ok, _} =
+  Database.create(config, "livebook_demo",
+    label: "Livebook Demo",
+    comment: "A database for the livebook walkthrough",
+    schema: true
+  )
 ```
 
 ```
@@ -228,7 +231,7 @@ feature_config = Config.with_branch(config, "feature-x")
 # Insert on the branch
 {:ok, _} =
   Document.insert(feature_config,
-    %{"@type" => "Person", "name" => "Dave", "age" => 40},
+    %{"@type" => "Person", "name" => "Dave", "age" => 40, "email" => "dave@example.com"},
     author: "admin",
     message: "Add Dave on feature branch"
   )
@@ -289,7 +292,7 @@ Document.stream(config, type: "Person")
 ```elixir
 # Now operations emit telemetry events
 {:ok, _} = Document.insert(config,
-  %{"@type" => "Person", "name" => "Eve", "age" => 35},
+  %{"@type" => "Person", "name" => "Eve", "age" => 35, "email" => "eve@example.com"},
   author: "admin",
   message: "Add Eve"
 )
@@ -311,11 +314,14 @@ case Database.create(config, "livebook_demo", label: "Duplicate") do
   {:ok, _} ->
     IO.puts("Created (unexpected)")
 
-  {:error, %Error{reason: :api, api_type: "api:DatabaseAlreadyExists"} = e} ->
+  {:error, %{reason: :api, api_type: "api:DatabaseAlreadyExists"} = e} ->
     IO.puts("Expected error: #{Exception.message(e)}")
 
-  {:error, %Error{} = e} ->
-    IO.puts("Other error: #{Exception.message(e)}")
+  {:error, %{reason: :api} = e} ->
+    IO.puts("Other API error: #{Exception.message(e)}")
+
+  {:error, e} ->
+    IO.puts("Other error: #{inspect(e)}")
 end
 ```
 
@@ -325,7 +331,12 @@ end
 
 ```elixir
 # Raising variant
-Database.create!(config, "livebook_demo", label: "Duplicate")
+try do
+  Database.create!(config, "livebook_demo", label: "Duplicate")
+rescue
+  e in TerminusDB.Error ->
+    IO.puts("Raised as expected: #{Exception.message(e)}")
+end
 ```
 
 ```

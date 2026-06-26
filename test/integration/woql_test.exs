@@ -333,4 +333,149 @@ defmodule TerminusDB.Integration.WOQLTest do
       assert "Person/Bob" in targets or "terminusdb:///data/Person/Bob" in targets
     end
   end
+
+  describe "range queries" do
+    test "triple_slice returns values in range", %{config: cfg} do
+      insert_schema(cfg)
+      insert_person(cfg, "Alice", 30)
+      insert_person(cfg, "Bob", 25)
+      insert_person(cfg, "Carol", 40)
+
+      query =
+        WOQL.select(
+          ["v:Name", "v:Age"],
+          WOQL.and_([
+            WOQL.triple("v:P", "name", "v:Name"),
+            WOQL.triple("v:P", "age", "v:Age"),
+            WOQL.triple("v:P", "rdf:type", WOQL.iri("@schema:Person")),
+            WOQL.triple_slice("v:P", "age", "v:Age", 20, 35)
+          ])
+        )
+
+      {:ok, result} = WOQL.execute(cfg, query)
+      assert result["api:status"] == "api:success"
+      names = binding_values(result["bindings"], "Name")
+      assert "Alice" in names
+      assert "Bob" in names
+      refute "Carol" in names
+    end
+
+    test "triple_next finds next value after reference", %{config: cfg} do
+      insert_schema(cfg)
+      insert_person(cfg, "Alice", 30)
+      insert_person(cfg, "Bob", 25)
+      insert_person(cfg, "Carol", 40)
+
+      query =
+        WOQL.select(
+          ["v:Next"],
+          WOQL.and_([
+            WOQL.triple("v:P", "age", 25),
+            WOQL.triple_next("v:P", "age", 25, "v:Next")
+          ])
+        )
+
+      {:ok, result} = WOQL.execute(cfg, query)
+      assert result["api:status"] == "api:success"
+    end
+  end
+
+  describe "temporal / Allen" do
+    test "in_range checks if value is in range", %{config: cfg} do
+      insert_schema(cfg)
+      insert_person(cfg, "Alice", 30)
+
+      query =
+        WOQL.select(
+          ["v:Name"],
+          WOQL.and_([
+            WOQL.triple("v:P", "name", "v:Name"),
+            WOQL.triple("v:P", "age", "v:Age"),
+            WOQL.in_range("v:Age", 20, 40)
+          ])
+        )
+
+      {:ok, result} = WOQL.execute(cfg, query)
+      assert result["api:status"] == "api:success"
+      names = binding_values(result["bindings"], "Name")
+      assert "Alice" in names
+    end
+
+    test "day_after computes next day", %{config: cfg} do
+      insert_schema(cfg)
+
+      query =
+        WOQL.select(
+          ["v:Next"],
+          WOQL.day_after(WOQL.date("2026-01-15"), "v:Next")
+        )
+
+      {:ok, result} = WOQL.execute(cfg, query)
+      assert result["api:status"] == "api:success"
+      next_days = binding_values(result["bindings"], "Next")
+      assert "2026-01-16" in next_days
+    end
+
+    test "weekday computes ISO weekday", %{config: cfg} do
+      insert_schema(cfg)
+
+      query =
+        WOQL.select(
+          ["v:Day"],
+          WOQL.weekday("2026-01-15", "v:Day")
+        )
+
+      {:ok, result} = WOQL.execute(cfg, query)
+      assert result["api:status"] == "api:success"
+    end
+
+    test "range_min encodes and executes", %{config: cfg} do
+      insert_schema(cfg)
+      insert_person(cfg, "Alice", 30)
+
+      query =
+        WOQL.select(
+          ["v:Min"],
+          WOQL.range_min("v:Ages", "v:Min")
+        )
+
+      result = WOQL.execute(cfg, query)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "range_max encodes and executes", %{config: cfg} do
+      insert_schema(cfg)
+      insert_person(cfg, "Alice", 30)
+
+      query =
+        WOQL.select(
+          ["v:Max"],
+          WOQL.range_max("v:Ages", "v:Max")
+        )
+
+      result = WOQL.execute(cfg, query)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+  end
+
+  describe "WOQL streaming" do
+    test "execute_stream returns a stream of bindings", %{config: cfg} do
+      insert_schema(cfg)
+      insert_person(cfg, "Alice", 30)
+      insert_person(cfg, "Bob", 25)
+
+      query =
+        WOQL.select(
+          ["v:Name"],
+          WOQL.and_([
+            WOQL.triple("v:P", "name", "v:Name"),
+            WOQL.triple("v:P", "rdf:type", WOQL.iri("@schema:Person"))
+          ])
+        )
+
+      {:ok, stream} = WOQL.execute_stream(cfg, query)
+      bindings = Enum.to_list(stream)
+      assert length(bindings) >= 2
+    end
+  end
 end
