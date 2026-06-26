@@ -1,13 +1,15 @@
 defmodule TerminusDB.MixProject do
   use Mix.Project
 
-  @version "0.3.2-dev"
+  @version "0.3.2"
   @source_url "https://github.com/thanos/terminusdb-client-elixir"
   @description """
   An idiomatic Elixir client for TerminusDB, the version-controlled document graph
   database. Features DB management, document CRUD with streaming, schema frames,
-  branching, commit history, diff/merge, a WOQL query DSL, a Req-based HTTP client,
-  immutable configs, typed errors, and telemetry.
+  branching, commit history, diff/merge/patch, a WOQL query DSL (~100 operators
+  including temporal/Allen, CSV/IO, range queries, RDF list library), GraphQL
+  support, prefix management, triples API, remote clone/fetch/push/pull, a
+  Req-based HTTP client, immutable configs, typed errors, and telemetry.
   """
 
   def project do
@@ -119,6 +121,7 @@ defmodule TerminusDB.MixProject do
         {"guides/temporal-allen-guide.md", [title: "Temporal & Allen Interval Algebra"]},
         {"guides/csv-import-guide.md", [title: "CSV Import / Export"]},
         {"guides/rdf-list-guide.md", [title: "RDF List Library"]},
+        {"guides/terminusdb_ex_livebook.livemd", [title: "Livebook Demo"]},
         {"CHANGELOG.md", [title: "Changelog"]},
         {"ARCHITECTURE.md", [title: "Architecture"]},
         {"LICENSE", [title: "License"]}
@@ -131,7 +134,8 @@ defmodule TerminusDB.MixProject do
           "guides/graphql-guide.md",
           "guides/temporal-allen-guide.md",
           "guides/csv-import-guide.md",
-          "guides/rdf-list-guide.md"
+          "guides/rdf-list-guide.md",
+          "guides/terminusdb_ex_livebook.livemd"
         ],
         Architecture: ["ARCHITECTURE.md"]
       ],

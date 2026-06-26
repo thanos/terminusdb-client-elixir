@@ -5,7 +5,7 @@ All notable changes to `terminusdb_ex` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.2-dev] — TBD
+## [0.3.2] — 2026-06-26
 
 ### Added — GraphQL (ADR-0009)
 
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `TerminusDB.WOQL.RDFList` module with 17 functions: `rdflist_list/2`,
   `rdflist_peek/2`, `rdflist_last/2`, `rdflist_nth0/3`, `rdflist_nth1/3`,
-  `rdflist_member/2`, `rdflist_length/2`, `rdflist_pop/2`, `rdflist_push/2`,
+  `rdflist_member/2`, `rdflist_length/2`, `rdflist_pop/2`, `rdflist_push/3`,
   `rdflist_append/3`, `rdflist_clear/2`, `rdflist_empty/1`,
   `rdflist_is_empty/1`, `rdflist_slice/4`, `rdflist_insert/4`,
   `rdflist_drop/2`, `rdflist_swap/3`.
@@ -63,10 +63,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — Tutorials
 
-- `guides/graphql-guide.md`, `guides/temporal-allen-guide.md`,
-  `guides/csv-import-guide.md`, `guides/rdf-list-guide.md`.
-- `guides/terminusdb_ex_graphql.livemd`,
-  `guides/terminusdb_ex_temporal.livemd`.
+- `guides/graphql-guide.md` — GraphQL queries, mutations, filters, pagination.
+- `guides/temporal-allen-guide.md` — Intervals, Allen relations, calendar ops.
+- `guides/csv-import-guide.md` — CSV reading/writing with WOQL.
+- `guides/rdf-list-guide.md` — RDF list manipulation.
+
+### Changed
+
+- `rdflist_push/2` changed to `rdflist_push/3`: now takes a `new_head_var`
+  parameter so callers can update their reference to the new list head.
+- `Benchmark.seed_database/2` return type changed from `Config.t()` to
+  `{Config.t(), String.t()}` so callers can clean up the database after
+  benchmarking.
+- `Patch.before/1` and `Patch.update/1` asymmetry documented: `before/1`
+  preserves non-SwapValue fields for full state reconstruction; `update/1`
+  only includes changed (SwapValue) fields.
+- `WOQL.execute_stream/3` now uses lazy `Stream.map` instead of eager
+  `Enum.map`, and safe `Jason.decode/1` instead of `Jason.decode!/1`.
+- `GraphQL.query/3`, `GraphQL.mutate/3`, `GraphQL.introspect/2`, and all
+  `Prefix.*` functions now return `{:error, %Error{reason: :config}}` when
+  no database is scoped, instead of raising.
+
+### Fixed — Review fixes (review-0.3.2.md)
+
+- `rdflist_nth0`/`rdflist_nth1` variable-index path: fixed missing `v.dec`
+  variable in localize map; added `eval(minus(...))` for decrement; unrolled
+  recursion to avoid infinite Elixir recursion (C1).
+- `rdflist_slice/4`: fixed silently ignored `end_val` parameter; rewrote
+  with proper start/end bounds using cell navigation + collect (C2).
+- `rdflist_swap/3`: fixed no-op implementation; added `rdflist_cell_at`
+  helper and delete_triple/add_triple write operations for both cells (C3).
+- `rdflist_drop/2`: fixed to operate on the cell at `position`, not the list
+  head; position 0 deletes from head, position > 0 navigates to cell and
+  relinks parent (H1).
+- `rdflist_clear/2`: wrapped delete_triple calls inside `opt(and_([triple,
+  delete]))` blocks to guard against unbound variables (M4).
+- `encode_arithmetic/1`: added clause for non-variable binary strings (L2).
+- `Benchmark.seed_database/2`: returns `{config, db_name}` for cleanup (L4).
+- RDFList tests: added structural AST assertions verifying write operations
+  (AddTriple/DeleteTriple) in swap/drop, dec variable in nth, Optional
+  blocks in clear (L5).
+- `encode_value/1`: added list encoding for `range_min`/`range_max`
+  operands (uses `DataValue` wrapper with `list` field).
 
 ### Deferred to v0.3.3+
 
