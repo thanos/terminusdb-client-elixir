@@ -4,12 +4,10 @@ defmodule TerminusDB.MixProject do
   @version "0.3.2"
   @source_url "https://github.com/thanos/terminusdb-client-elixir"
   @description """
-  An idiomatic Elixir client for TerminusDB, the version-controlled document graph
-  database. Features DB management, document CRUD with streaming, schema frames,
-  branching, commit history, diff/merge/patch, a WOQL query DSL (~100 operators
-  including temporal/Allen, CSV/IO, range queries, RDF list library), GraphQL
-  support, prefix management, triples API, remote clone/fetch/push/pull, a
-  Req-based HTTP client, immutable configs, typed errors, and telemetry.
+  An idiomatic Elixir client for TerminusDB, the version-controlled document
+  graph database. Features DB management, document CRUD with streaming, schema
+  frames, branching, diff/merge, a ~100-operator WOQL DSL, GraphQL, and
+  telemetry. Built on Req with immutable configs and typed errors.
   """
 
   def project do
