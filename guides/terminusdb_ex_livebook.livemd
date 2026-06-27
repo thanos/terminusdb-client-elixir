@@ -30,6 +30,13 @@ for _ <- 1..30 do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+[:ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok,
+ :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok, :ok]
+```
+
 ## 1. Configuration
 
 ```elixir
@@ -38,9 +45,36 @@ alias TerminusDB.{Config, Database, Document, Schema, Branch, Client}
 config = Config.new(endpoint: endpoint)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+%TerminusDB.Config{
+  endpoint: "http://localhost:6363",
+  token: nil,
+  user: "admin",
+  key: "root",
+  organization: "admin",
+  database: nil,
+  branch: "main",
+  repo: "local",
+  ref: nil,
+  adapter: nil,
+  headers: %{},
+  receive_timeout: 15000,
+  telemetry: true,
+  user_agent: "terminusdb_ex/0.3.3"
+}
+```
+
 ```elixir
 # Inspect auth
 Config.auth(config)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:basic, "admin:root"}
 ```
 
 ```elixir
@@ -48,11 +82,32 @@ Config.auth(config)
 Config.redact(config)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+%TerminusDB.Config{
+  endpoint: "http://localhost:6363",
+  token: nil,
+  user: "admin",
+  key: "[redacted]",
+  organization: "admin",
+  database: nil,
+  branch: "main",
+  repo: "local",
+  ref: nil,
+  adapter: nil,
+  headers: %{},
+  receive_timeout: 15000,
+  telemetry: true,
+  user_agent: "terminusdb_ex/0.3.3"
+}
+```
+
 ## 2. Database management
 
 ```elixir
 # Create a database with a schema graph
-db_name = "livebook_demo-tester"
+db_name = "livebook_demo"
   if Database.exists?(config, db_name) do
   {:ok, _} = Database.delete(config, db_name, force: true)
 end
@@ -65,9 +120,26 @@ end
   )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %{
+   "@type" => "api:DbCreateResponse",
+   "api:database_uri" => "terminusdb://system/data/UserDatabase/SmeaEIKVI6YM7zn3",
+   "api:status" => "api:success"
+ }}
+```
+
 ```elixir
 # Check it exists
-Database.exists?(config, "livebook_demo")
+Database.exists?(config, db_name)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+true
 ```
 
 ```elixir
@@ -76,12 +148,39 @@ Database.exists?(config, "livebook_demo")
 
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, [%{"path" => "admin/livebook_demo-tester"}, %{"path" => "admin/livebook_demo"}]}
+```
+
 ## 3. Document operations
 
 Scope the config to the database:
 
 ```elixir
 config = Config.with_database(config, db_name)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%TerminusDB.Config{
+  endpoint: "http://localhost:6363",
+  token: nil,
+  user: "admin",
+  key: "root",
+  organization: "admin",
+  database: "livebook_demo",
+  branch: "main",
+  repo: "local",
+  ref: nil,
+  adapter: nil,
+  headers: %{},
+  receive_timeout: 15000,
+  telemetry: true,
+  user_agent: "terminusdb_ex/0.3.3"
+}
 ```
 
 ### Insert a schema
@@ -102,6 +201,12 @@ config = Config.with_database(config, db_name)
   )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ["Person"]}
+```
+
 ### Insert documents
 
 ```elixir
@@ -113,12 +218,24 @@ config = Config.with_database(config, db_name)
   )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ["terminusdb:///data/Person/LPnwAEvaeyRJngy2"]}
+```
+
 ```elixir
 {:ok, [bobs_id|_]} =
   Document.insert(config, [
     %{"@type" => "Person", "name" => "Bob", "age" => 25, "email" => "bob@example.com"},
     %{"@type" => "Person", "name" => "Carol", "age" => 28, "email" => "carol@example.com"}
   ], author: "admin", message: "Add Bob and Carol")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ["terminusdb:///data/Person/mWqqWA7AmhotGfCe", "terminusdb:///data/Person/-9MoNh4h976kbIRe"]}
 ```
 
 ### Retrieve documents
@@ -128,11 +245,23 @@ config = Config.with_database(config, db_name)
 Enum.map(docs, & &1["name"])
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+["Alice", "Alice", "Carol", "Bob"]
+```
+
 ```elixir
 {:ok, matches} =
   Document.query(config, %{"@type" => "Person", "age" => 28})
 
 Enum.map(matches, & &1["name"])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["Carol"]
 ```
 
 ```elixir
@@ -148,6 +277,19 @@ Enum.map(matches, & &1["name"])
 {:ok, _updated_person} = Document.get(config, id: alice_id, as_list: false)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %{
+   "@id" => "Person/LPnwAEvaeyRJngy2",
+   "@type" => "Person",
+   "age" => 31,
+   "email" => "alice@example.com",
+   "name" => "Alice"
+ }}
+```
+
 ### Delete a document
 
 ```elixir
@@ -158,19 +300,34 @@ Enum.map(matches, & &1["name"])
 )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ""}
+```
+
 ## 4. Schema frames
 
 ```elixir
 {:ok, _frame} = Schema.frame(config, "Person")
 ```
 
+<!-- livebook:{"output":true} -->
+
 ```
- => %{"@type" => "Class", "name" => "xsd:string", "age" => "xsd:integer", ...}
+{:ok,
+ %{"@type" => "Class", "age" => "xsd:integer", "email" => "xsd:string", "name" => "xsd:string"}}
 ```
 
 ```elixir
 {:ok, all} = Schema.all(config)
 Map.keys(all)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["Person"]
 ```
 
 ## 5. Branches
@@ -180,9 +337,21 @@ Map.keys(all)
 {:ok, _} = Branch.create(config, "feature-x")
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, %{"@type" => "api:BranchResponse", "api:status" => "api:success"}}
+```
+
 ```elixir
 # It exists
 Branch.exists?(config, "feature-x")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+true
 ```
 
 ```elixir
@@ -198,10 +367,22 @@ feature_config = Config.with_branch(config, "feature-x")
   )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ["terminusdb:///data/Person/5vU__VxlSRGxjZtH"]}
+```
+
 ```elixir
 # Dave is on the feature branch
 {:ok, feature_docs} = Document.get(feature_config, type: "Person", as_list: true)
 "Dave" in Enum.map(feature_docs, & &1["name"])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+true
 ```
 
 ```elixir
@@ -210,13 +391,21 @@ feature_config = Config.with_branch(config, "feature-x")
 "Dave" in Enum.map(main_docs, & &1["name"])
 ```
 
+<!-- livebook:{"output":true} -->
+
 ```
- => false
+false
 ```
 
 ```elixir
 # Delete the branch
 {:ok, _} = Branch.delete(config, "feature-x")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, %{"@type" => "api:BranchResponse", "api:status" => "api:success"}}
 ```
 
 ## 6. Streaming
@@ -226,6 +415,12 @@ feature_config = Config.with_branch(config, "feature-x")
 Document.stream(config, type: "Person")
 |> Stream.map(& &1["name"])
 |> Enum.to_list()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["Alice", "Alice", "Carol"]
 ```
 
 ## 7. Telemetry
@@ -242,6 +437,22 @@ Document.stream(config, type: "Person")
 )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+
+19:30:10.866 [info] The function passed as a handler with ID "livebook-telemetry" is a local function.
+This means that it is either an anonymous function or a capture of a function without a module specified. That may cause a performance penalty when calling that handler. For more details see the note in `telemetry:attach/4` documentation.
+
+https://hexdocs.pm/telemetry/telemetry.html#attach/4
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
 ```elixir
 # Now operations emit telemetry events
 {:ok, _} = Document.insert(config,
@@ -251,12 +462,30 @@ Document.stream(config, type: "Person")
 )
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+[document] post document/admin/livebook_demo/local/branch/main -> 200 (34ms)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, ["terminusdb:///data/Person/IntZyco3cFStgR1I"]}
+```
+
 ```
  [document] :post document/admin/livebook_demo -> 200 (15ms)
 ```
 
 ```elixir
 :telemetry.detach("livebook-telemetry")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## 8. Error handling
@@ -278,8 +507,16 @@ case Database.create(config, "livebook_demo", label: "Duplicate") do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
 ```
- Expected error: TerminusDB API error 400 (api:DatabaseAlreadyExists): Database already exists.
+Expected error: TerminusDB API error 400 (api:DatabaseAlreadyExists): Database already exists.
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ```elixir
@@ -292,8 +529,16 @@ rescue
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
 ```
- ** (TerminusDB.Error) TerminusDB API error 400 (api:DatabaseAlreadyExists): Database already exists.
+Raised as expected: TerminusDB API error 400 (api:DatabaseAlreadyExists): Database already exists.
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## 9. Raw client
@@ -304,14 +549,22 @@ end
 info["api:info"]["terminusdb"]["version"]
 ```
 
+<!-- livebook:{"output":true} -->
+
 ```
- => "12.0.5"
+"12.0.6"
 ```
 
 ## Cleanup
 
 ```elixir
 {:ok, _} = Database.delete(config, "livebook_demo", force: true)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, %{"@type" => "api:DbDeleteResponse", "api:status" => "api:success"}}
 ```
 
 ```elixir
