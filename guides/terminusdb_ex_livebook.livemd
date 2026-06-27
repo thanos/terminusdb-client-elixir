@@ -4,7 +4,7 @@
 
 ```elixir
 Mix.install([
-  {:terminusdb_client, "~> 0.3.2"}
+  {:terminusdb_client, "~> 0.3.3"}
 ])
 ```
 

@@ -18,7 +18,7 @@ Add `terminusdb_client` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:terminusdb_client, "~> 0.3.2"}
+    {:terminusdb_client, "~> 0.3.3"}
   ]
 end
 ```
@@ -186,12 +186,13 @@ docker compose down
 | **v0.3.0** | Commit, Diff, Merge, WOQL DSL v0.1, TerminusDB 12 compat | Done |
 | **v0.3.1** | WOQL DSL v0.2 (~70 operators, 4-wrapper value model, path DSL) | Done |
 | **v0.3.2** | GraphQL, temporal/Allen (19 ops), RDF list (17 fns), CSV/IO (6 ops), range queries (8 ops), prefix mgmt, patch/apply, triples, remote, WOQL streaming, benchmarks, tutorials | Done |
+| **v0.3.3** | Bug fixes: document query filtering, branch-scoped paths, Schema.all @context filtering, Livebook script repair | Done |
 | **v0.4.0** | Ecto schema definition (`TerminusDB.Schema` macro), access control (RBAC), Explorer DataFrame integration | Pending |
 | **v0.5.0** | ExDatalog bridge (`TerminusDB.Datalog`) | Pending |
 
 ### Parity with the Python client
 
-Full gap analysis: see `docs/gap-analysis.md` in the repository.
+Full gap analysis: see `baoulo/reviews/gap-analysis.md` in the repository.
 
 | Area | Elixir | Python | Notes |
 | --- | --- | --- | --- |

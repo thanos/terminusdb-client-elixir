@@ -5,6 +5,44 @@ All notable changes to `terminusdb_ex` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] — 2026-06-27
+
+### Fixed
+
+- `Document.query/3`: was sending the template as a bare GET body instead of
+  a POST with `X-HTTP-Method-Override: GET` and the template wrapped in a
+  `{"query": template, "graph_type": ..., "skip": ...}` body. The server
+  ignored the unwrapped template and returned all documents. Now matches the
+  Python client's `query_document` method.
+- `Document` and `Schema` path helpers: were producing paths like
+  `document/{org}/{db}` — missing the `/{repo}/branch/{branch}` segment.
+  All document and schema operations went to the default branch regardless
+  of `config.branch`, so documents inserted on a feature branch were visible
+  on main. Both `document_path/2` and `schema_path/2` now include repo and
+  branch from config.
+- `Schema.all/2`: returned the raw server response which includes an
+  `@context` key (JSON-LD metadata). Now filters out `@`-prefixed keys so
+  `Map.keys/1` returns only class names.
+- `Client.req_opts/1`: added `:headers` to the allowed opts so per-request
+  headers (e.g. `X-HTTP-Method-Override`) can be passed through to Req.
+- Livebook script (`terminusdb_ex_livebook.exs` and `.livemd`): added missing
+  `email` field to Dave and Eve inserts (schema requires it), replaced
+  `%Error{}` struct pattern with map pattern (structs from `Mix.install` deps
+  aren't available at compile time in `.exs` scripts), wrapped
+  `Database.create!` in `try/rescue` so cleanup runs, added delete-if-exists
+  guard before database creation, updated `Mix.install` version to `~> 0.3.3`.
+
+### Added — Regression tests
+
+- Unit: `Document.query` sends POST with wrapped body and override header.
+- Unit: document paths include repo/branch from config (feature branch test).
+- Unit: document paths default to main when no branch scoped.
+- Unit: `Schema.all` filters `@context` from response.
+- Unit: `Schema.all!` returns frames without `@context`.
+- Integration: `Document.query` filters by template fields (age: 28 → only Carol).
+- Integration: documents on feature branch not visible on main.
+- Integration: `Schema.all` returns only class names, not `@context`.
+
 ## [0.3.2] — 2026-06-26
 
 ### Added — GraphQL (ADR-0009)
