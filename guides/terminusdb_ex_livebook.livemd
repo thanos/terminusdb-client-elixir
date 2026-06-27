@@ -126,7 +126,7 @@ config = Config.with_database(config, "livebook_demo")
 ### Insert documents
 
 ```elixir
-{:ok, _} =
+{:ok, [alice_id|_]} =
   Document.insert(config,
     %{"@type" => "Person", "name" => "Alice", "age" => 30, "email" => "alice@example.com"},
     author: "admin",
@@ -135,7 +135,7 @@ config = Config.with_database(config, "livebook_demo")
 ```
 
 ```elixir
-{:ok, _} =
+{:ok, [bobs_id|_]} =
   Document.insert(config, [
     %{"@type" => "Person", "name" => "Bob", "age" => 25, "email" => "bob@example.com"},
     %{"@type" => "Person", "name" => "Carol", "age" => 28, "email" => "carol@example.com"}
@@ -169,7 +169,7 @@ Enum.map(matches, & &1["name"])
 ### Replace (update) a document
 
 ```elixir
-{:ok, person} = Document.get(config, id: "Person/Alice", as_list: false)
+{:ok, person} = Document.get(config, id: alice_id, as_list: false)
 
 {:ok, _} =
   Document.replace(config,
@@ -177,13 +177,15 @@ Enum.map(matches, & &1["name"])
     author: "admin",
     message: "Happy birthday Alice"
   )
+
+{:ok, _updated_person} = Document.get(config, id: alice_id, as_list: false)
 ```
 
 ### Delete a document
 
 ```elixir
 {:ok, _} = Document.delete(config,
-  id: "Person/Bob",
+  id: bobs_id,
   author: "admin",
   message: "Remove Bob"
 )
@@ -192,7 +194,7 @@ Enum.map(matches, & &1["name"])
 ## 4. Schema frames
 
 ```elixir
-{:ok, frame} = Schema.frame(config, "Person")
+{:ok, _frame} = Schema.frame(config, "Person")
 ```
 
 ```
