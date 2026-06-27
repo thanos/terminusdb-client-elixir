@@ -1,3 +1,5 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # terminusdb_ex Livebook Demo
 
 ```elixir
@@ -36,17 +38,9 @@ alias TerminusDB.{Config, Database, Document, Schema, Branch, Client}
 config = Config.new(endpoint: endpoint)
 ```
 
-```
- => %TerminusDB.Config{endpoint: "http://localhost:6363", user: "admin", key: "root", ...}
-```
-
 ```elixir
 # Inspect auth
 Config.auth(config)
-```
-
-```
- => {:basic, "admin:root"}
 ```
 
 ```elixir
@@ -54,28 +48,21 @@ Config.auth(config)
 Config.redact(config)
 ```
 
-```
- => %TerminusDB.Config{key: "[redacted]", token: nil, ...}
-```
-
 ## 2. Database management
 
 ```elixir
 # Create a database with a schema graph
-if Database.exists?(config, "livebook_demo") do
-  {:ok, _} = Database.delete(config, "livebook_demo", force: true)
+db_name = "livebook_demo-tester"
+  if Database.exists?(config, db_name) do
+  {:ok, _} = Database.delete(config, db_name, force: true)
 end
 
 {:ok, _} =
-  Database.create(config, "livebook_demo",
+  Database.create(config, db_name,
     label: "Livebook Demo",
     comment: "A database for the livebook walkthrough",
     schema: true
   )
-```
-
-```
- => {:ok, %{"@type" => "api:DbCreateResponse", "api:status" => "api:success"}}
 ```
 
 ```elixir
@@ -83,18 +70,10 @@ end
 Database.exists?(config, "livebook_demo")
 ```
 
-```
- => true
-```
-
 ```elixir
 # List all databases
 {:ok, dbs} = Database.list(config)
-Enum.map(dbs, & &1["name"])
-```
 
-```
- => ["livebook_demo"]
 ```
 
 ## 3. Document operations
@@ -102,7 +81,7 @@ Enum.map(dbs, & &1["name"])
 Scope the config to the database:
 
 ```elixir
-config = Config.with_database(config, "livebook_demo")
+config = Config.with_database(config, db_name)
 ```
 
 ### Insert a schema
@@ -149,24 +128,12 @@ config = Config.with_database(config, "livebook_demo")
 Enum.map(docs, & &1["name"])
 ```
 
-```
- => ["Alice", "Bob", "Carol"]
-```
-
-### Query by template
-
 ```elixir
 {:ok, matches} =
   Document.query(config, %{"@type" => "Person", "age" => 28})
 
 Enum.map(matches, & &1["name"])
 ```
-
-```
- => ["Carol"]
-```
-
-### Replace (update) a document
 
 ```elixir
 {:ok, person} = Document.get(config, id: alice_id, as_list: false)
@@ -206,10 +173,6 @@ Enum.map(matches, & &1["name"])
 Map.keys(all)
 ```
 
-```
- => ["Person"]
-```
-
 ## 5. Branches
 
 ```elixir
@@ -220,10 +183,6 @@ Map.keys(all)
 ```elixir
 # It exists
 Branch.exists?(config, "feature-x")
-```
-
-```
- => true
 ```
 
 ```elixir
@@ -243,10 +202,6 @@ feature_config = Config.with_branch(config, "feature-x")
 # Dave is on the feature branch
 {:ok, feature_docs} = Document.get(feature_config, type: "Person", as_list: true)
 "Dave" in Enum.map(feature_docs, & &1["name"])
-```
-
-```
- => true
 ```
 
 ```elixir
@@ -271,10 +226,6 @@ feature_config = Config.with_branch(config, "feature-x")
 Document.stream(config, type: "Person")
 |> Stream.map(& &1["name"])
 |> Enum.to_list()
-```
-
-```
- => ["Alice", "Carol"]
 ```
 
 ## 7. Telemetry

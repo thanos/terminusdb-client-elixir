@@ -21,7 +21,7 @@ defmodule TerminusDB.DocumentTest do
 
       req = last_request()
       assert req.method == :post
-      assert req.url.path == "/api/document/admin/mydb"
+      assert req.url.path == "/api/document/admin/mydb/local/branch/main"
 
       assert {:ok, body} = Jason.decode(req.body)
       assert body == %{"@type" => "Person", "name" => "Alice"}
@@ -92,7 +92,7 @@ defmodule TerminusDB.DocumentTest do
       )
 
       req = last_request()
-      assert req.url.path == "/api/document/acme/mydb"
+      assert req.url.path == "/api/document/acme/mydb/local/branch/main"
     end
 
     test "raises when no database is scoped in config" do
@@ -129,7 +129,7 @@ defmodule TerminusDB.DocumentTest do
       assert {:ok, _} = Document.get(db_config(adapter))
       req = last_request()
       assert req.method == :get
-      assert req.url.path == "/api/document/admin/mydb"
+      assert req.url.path == "/api/document/admin/mydb/local/branch/main"
       assert req.url.query =~ "graph_type=instance"
     end
 
@@ -183,7 +183,7 @@ defmodule TerminusDB.DocumentTest do
 
       Document.get(db_config(adapter), organization: "acme")
       req = last_request()
-      assert req.url.path == "/api/document/acme/mydb"
+      assert req.url.path == "/api/document/acme/mydb/local/branch/main"
     end
   end
 
@@ -200,19 +200,21 @@ defmodule TerminusDB.DocumentTest do
   end
 
   describe "query/3" do
-    test "GETs document/:org/:db with the template as JSON body" do
+    test "POSTs document/:org/:db with template wrapped in query body and X-HTTP-Method-Override: GET" do
       test = self()
       adapter = capture(test, ok([%{"@type" => "Person", "age" => 30}]))
 
       assert {:ok, _} = Document.query(db_config(adapter), %{"@type" => "Person", "age" => 30})
       req = last_request()
-      assert req.method == :get
+      assert req.method == :post
+      assert req.headers["x-http-method-override"] == ["GET"]
 
       assert {:ok, body} = Jason.decode(req.body)
-      assert body == %{"@type" => "Person", "age" => 30}
+      assert body["query"] == %{"@type" => "Person", "age" => 30}
+      assert body["graph_type"] == "instance"
     end
 
-    test "passes :skip, :count, and :as_list params" do
+    test "passes :skip and :count in the body, :as_list as param" do
       test = self()
       adapter = capture(test, ok([]))
 
@@ -223,9 +225,11 @@ defmodule TerminusDB.DocumentTest do
       )
 
       req = last_request()
-      assert req.url.query =~ "skip=5"
-      assert req.url.query =~ "count=10"
       assert req.url.query =~ "as_list=true"
+
+      assert {:ok, body} = Jason.decode(req.body)
+      assert body["skip"] == 5
+      assert body["count"] == 10
     end
 
     test "targets the schema graph when graph_type: :schema" do
@@ -235,7 +239,8 @@ defmodule TerminusDB.DocumentTest do
       Document.query(db_config(adapter), %{"@type" => "Class"}, graph_type: :schema)
 
       req = last_request()
-      assert req.url.query =~ "graph_type=schema"
+      assert {:ok, body} = Jason.decode(req.body)
+      assert body["graph_type"] == "schema"
     end
 
     test "returns an :api error on failure" do
@@ -401,7 +406,7 @@ defmodule TerminusDB.DocumentTest do
 
       req = last_request()
       assert req.method == :get
-      assert req.url.path == "/api/document/admin/mydb"
+      assert req.url.path == "/api/document/admin/mydb/local/branch/main"
       assert req.url.query =~ "type=Person"
     end
 
@@ -419,6 +424,37 @@ defmodule TerminusDB.DocumentTest do
       assert_raise Error, fn ->
         Document.stream(db_config(adapter), type: "Person")
       end
+    end
+  end
+
+  describe "branch-scoped paths" do
+    test "document operations include repo and branch from config" do
+      test = self()
+      adapter = capture(test, ok([%{"name" => "Alice"}]))
+
+      branch_config =
+        Config.with_branch(
+          Config.with_database(
+            Config.new(endpoint: "http://localhost:6363", adapter: adapter),
+            "mydb"
+          ),
+          "feature"
+        )
+
+      Document.get(branch_config, type: "Person", as_list: true)
+
+      req = last_request()
+      assert req.url.path == "/api/document/admin/mydb/local/branch/feature"
+    end
+
+    test "document operations default to main when no branch scoped" do
+      test = self()
+      adapter = capture(test, ok([%{"name" => "Alice"}]))
+
+      Document.get(db_config(adapter), type: "Person", as_list: true)
+
+      req = last_request()
+      assert req.url.path == "/api/document/admin/mydb/local/branch/main"
     end
   end
 end

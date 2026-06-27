@@ -102,7 +102,11 @@ defmodule TerminusDB.Document do
   # Path building -------------------------------------------------------------
 
   defp document_path(config, opts) do
-    "document/#{Client.resource_path(config, opts)}"
+    org = opts[:organization] || config.organization
+    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
+    repo = opts[:repo] || config.repo
+    branch = opts[:branch] || config.branch
+    "document/#{org}/#{db}/#{repo}/branch/#{branch}"
   end
 
   defp graph_type_param(opts), do: [graph_type: Atom.to_string(opts[:graph_type] || :instance)]
@@ -294,15 +298,25 @@ defmodule TerminusDB.Document do
   def query(config, template, opts \\ []) do
     path = document_path(config, opts)
 
-    # as_list: true is always sent for queries so the server returns a JSON
-    # array instead of concatenated JSON, which Req can decode as a list.
-    params =
-      graph_type_param(opts) ++
-        Params.flag_param(:skip, opts[:skip]) ++
-        Params.flag_param(:count, opts[:count]) ++
-        [{:as_list, true}]
+    body =
+      Params.maybe_put(
+        %{
+          "query" => template,
+          "graph_type" => Atom.to_string(opts[:graph_type] || :instance),
+          "skip" => opts[:skip] || 0
+        },
+        "count",
+        opts[:count]
+      )
 
-    Client.request(config, :get, path, json: template, params: params, area: :document)
+    params = [{:as_list, true}]
+
+    Client.request(config, :post, path,
+      json: body,
+      params: params,
+      headers: [{"x-http-method-override", "GET"}],
+      area: :document
+    )
   end
 
   @doc """

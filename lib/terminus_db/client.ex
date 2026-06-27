@@ -190,7 +190,16 @@ defmodule TerminusDB.Client do
   end
 
   defp req_opts(opts) do
-    Keyword.take(opts, [:json, :body, :params, :into, :form, :form_multipart, :decode_body])
+    Keyword.take(opts, [
+      :json,
+      :body,
+      :params,
+      :headers,
+      :into,
+      :form,
+      :form_multipart,
+      :decode_body
+    ])
   end
 
   # Response handling ---------------------------------------------------------

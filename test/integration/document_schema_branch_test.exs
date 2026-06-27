@@ -145,5 +145,106 @@ defmodule TerminusDB.Integration.DocumentSchemaBranchTest do
       # No longer exists
       assert Branch.exists?(cfg, "feature_branch") == false
     end
+
+    test "documents inserted on a feature branch are not visible on main", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Thing", "name" => "xsd:string"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      Document.insert!(
+        cfg,
+        %{"@type" => "Thing", "name" => "original"},
+        author: "admin",
+        message: "add on main"
+      )
+
+      {:ok, _} = Branch.create(cfg, "isolation_test")
+      feature_config = Config.with_branch(cfg, "isolation_test")
+
+      Document.insert!(
+        feature_config,
+        %{"@type" => "Thing", "name" => "from-feature"},
+        author: "admin",
+        message: "add on feature"
+      )
+
+      # Feature branch sees both documents
+      {:ok, feature_docs} = Document.get(feature_config, type: "Thing", as_list: true)
+      feature_names = Enum.map(feature_docs, & &1["name"])
+      assert "original" in feature_names
+      assert "from-feature" in feature_names
+
+      # Main branch does NOT see the feature branch document
+      {:ok, main_docs} = Document.get(cfg, type: "Thing", as_list: true)
+      main_names = Enum.map(main_docs, & &1["name"])
+      assert "original" in main_names
+      refute "from-feature" in main_names
+
+      {:ok, _} = Branch.delete(cfg, "isolation_test")
+    end
+  end
+
+  describe "query filtering" do
+    test "Document.query filters by template fields, not just type", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{
+          "@type" => "Class",
+          "@id" => "Person",
+          "@key" => %{"@type" => "Lexical", "@fields" => ["name"]},
+          "name" => "xsd:string",
+          "age" => "xsd:integer"
+        },
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      Document.insert!(cfg, %{"@type" => "Person", "name" => "Alice", "age" => 30},
+        author: "admin",
+        message: "add Alice"
+      )
+
+      Document.insert!(cfg, %{"@type" => "Person", "name" => "Bob", "age" => 25},
+        author: "admin",
+        message: "add Bob"
+      )
+
+      Document.insert!(cfg, %{"@type" => "Person", "name" => "Carol", "age" => 28},
+        author: "admin",
+        message: "add Carol"
+      )
+
+      # Query by age — should only return matching documents
+      {:ok, matches} = Document.query(cfg, %{"@type" => "Person", "age" => 28})
+      names = Enum.map(matches, & &1["name"])
+      assert names == ["Carol"]
+
+      # Query by different age
+      {:ok, matches2} = Document.query(cfg, %{"@type" => "Person", "age" => 30})
+      names2 = Enum.map(matches2, & &1["name"])
+      assert names2 == ["Alice"]
+    end
+  end
+
+  describe "Schema.all filters @context" do
+    test "all returns only class names, not @context", %{config: cfg} do
+      Document.insert!(
+        cfg,
+        %{"@type" => "Class", "@id" => "Person", "name" => "xsd:string"},
+        author: "admin",
+        message: "add schema",
+        graph_type: :schema
+      )
+
+      {:ok, all} = Schema.all(cfg)
+      keys = Map.keys(all)
+      assert "Person" in keys
+      refute "@context" in keys
+    end
   end
 end

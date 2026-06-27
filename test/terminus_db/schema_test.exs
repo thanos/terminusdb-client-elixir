@@ -22,7 +22,7 @@ defmodule TerminusDB.SchemaTest do
       assert {:ok, ^frame} = Schema.frame(db_config(adapter))
       req = last_request()
       assert req.method == :get
-      assert req.url.path == "/api/schema/admin/mydb"
+      assert req.url.path == "/api/schema/admin/mydb/local/branch/main"
     end
 
     test "GETs schema/:org/:db/:class for a specific class" do
@@ -34,7 +34,7 @@ defmodule TerminusDB.SchemaTest do
 
       assert {:ok, ^frame} = Schema.frame(db_config(adapter), "Person")
       req = last_request()
-      assert req.url.path == "/api/schema/admin/mydb"
+      assert req.url.path == "/api/schema/admin/mydb/local/branch/main"
     end
 
     test "passes compress_ids and expand_abstract params" do
@@ -57,7 +57,7 @@ defmodule TerminusDB.SchemaTest do
 
       Schema.frame(db_config(adapter), "Person", organization: "acme")
       req = last_request()
-      assert req.url.path == "/api/schema/acme/mydb"
+      assert req.url.path == "/api/schema/acme/mydb/local/branch/main"
     end
 
     test "raises when no database is scoped" do
@@ -85,14 +85,36 @@ defmodule TerminusDB.SchemaTest do
 
       Schema.all(db_config(adapter))
       req = last_request()
-      assert req.url.path == "/api/schema/admin/mydb"
+      assert req.url.path == "/api/schema/admin/mydb/local/branch/main"
+    end
+
+    test "filters out @context from server response" do
+      adapter =
+        fn req ->
+          {req,
+           ok(%{
+             "@context" => %{"@type" => "Context"},
+             "Person" => %{"@type" => "Class"},
+             "Room" => %{"@type" => "Class"}
+           })}
+        end
+
+      {:ok, all} = Schema.all(db_config(adapter))
+      keys = Map.keys(all)
+      assert "Person" in keys
+      assert "Room" in keys
+      refute "@context" in keys
     end
   end
 
   describe "all!/2" do
-    test "returns all frames on success" do
-      adapter = fn req -> {req, ok(%{"Person" => %{}})} end
-      assert Schema.all!(db_config(adapter)) == %{"Person" => %{}}
+    test "returns all frames on success, without @context" do
+      adapter =
+        fn req ->
+          {req, ok(%{"@context" => %{}, "Person" => %{"@type" => "Class"}})}
+        end
+
+      assert Schema.all!(db_config(adapter)) == %{"Person" => %{"@type" => "Class"}}
     end
   end
 end

@@ -34,7 +34,11 @@ defmodule TerminusDB.Schema do
           | {:organization, String.t()}
 
   defp schema_path(config, opts) do
-    "schema/#{Client.resource_path(config, opts)}"
+    org = opts[:organization] || config.organization
+    db = config.database || raise Error, reason: :http, message: "no database scoped in config"
+    repo = opts[:repo] || config.repo
+    branch = opts[:branch] || config.branch
+    "schema/#{org}/#{db}/#{repo}/branch/#{branch}"
   end
 
   @doc """
@@ -119,7 +123,7 @@ defmodule TerminusDB.Schema do
       iex> config = TerminusDB.Config.new(
       ...>   endpoint: "http://localhost:6363",
       ...>   adapter: fn req ->
-      ...>     {req, Req.Response.new(status: 200, body: %{"Person" => %{"@type" => "Class"}})}
+      ...>     {req, Req.Response.new(status: 200, body: %{"@context" => %{"@type" => "Context"}, "Person" => %{"@type" => "Class"}})}
       ...>   end
       ...> ) |> TerminusDB.Config.with_database("mydb")
       iex> {:ok, all} = TerminusDB.Schema.all(config)
@@ -128,7 +132,19 @@ defmodule TerminusDB.Schema do
 
   """
   @spec all(Config.t(), [frame_opt()]) :: {:ok, map()} | {:error, Error.t()}
-  def all(config, opts \\ []), do: frame(config, nil, opts)
+  def all(config, opts \\ []) do
+    case frame(config, nil, opts) do
+      {:ok, body} ->
+        {:ok, filter_class_frames(body)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp filter_class_frames(body) do
+    Map.reject(body, fn {key, _} -> String.starts_with?(key, "@") end)
+  end
 
   @doc """
   Returns all class frames, or raises `TerminusDB.Error`.
@@ -144,7 +160,12 @@ defmodule TerminusDB.Schema do
 
   """
   @spec all!(Config.t(), [frame_opt()]) :: map()
-  def all!(config, opts \\ []), do: frame!(config, nil, opts)
+  def all!(config, opts \\ []) do
+    case all(config, opts) do
+      {:ok, body} -> body
+      {:error, error} -> raise error
+    end
+  end
 
   # For boolean params where `false` is a meaningful value (not a default to
   # omit), we pass it through explicitly via Params.bool_param/2.
